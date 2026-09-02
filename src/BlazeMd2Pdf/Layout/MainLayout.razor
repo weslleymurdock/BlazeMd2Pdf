@@ -1,0 +1,36 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudPopoverProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar>
+        <MudIconButton Icon="@(_drawerOpen ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
+                       Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
+        <MudText Align="Align.Start" Typo="Typo.body1">Blaze Markdown To PDF</MudText>
+    </MudAppBar>
+    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always">
+        <MudNavMenu>
+            <MudNavLink Icon="@Icons.Material.Outlined.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
+            <MudNavGroup Icon="@Icons.Material.Outlined.LooksTwo" Title="Converter" Expanded="true">
+                <MudNavLink Icon="@Icons.Custom.FileFormats.FilePdf" Href="/topdf" Match="NavLinkMatch.Prefix">To PDF
+                </MudNavLink>
+                <MudNavLink Icon="@Icons.Custom.FileFormats.FileCode" Href="/tomarkdown" Match="NavLinkMatch.Prefix">To
+                    Markdown</MudNavLink>
+                </MudNavGroup>
+                <MudNavLink Icon="@Icons.Material.Outlined.Info" Href="/about" Match="NavLinkMatch.Prefix">About
+                </MudNavLink>
+            </MudNavMenu>
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer>
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+}

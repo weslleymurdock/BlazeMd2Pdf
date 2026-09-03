@@ -18,11 +18,11 @@
         <MudStack Spacing="3" Class="mt-3">
             <MudStack Row="true" Spacing="3">
                 <MudSelect T="string" Label="Font family" @bind-Value="_options.FontFamily" Variant="Variant.Outlined">
-                    <MudSelectItem Value="Arial, Helvetica, sans-serif">Arial</MudSelectItem>
-                    <MudSelectItem Value="Georgia, serif">Georgia</MudSelectItem>
-                    <MudSelectItem Value="Verdana, sans-serif">Verdana</MudSelectItem>
-                    <MudSelectItem Value="Roboto, sans-serif">Roboto</MudSelectItem>
-                    <MudSelectItem Value="monospace">Monospace</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Arial, Helvetica, sans-serif")">Arial</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Georgia, serif")">Georgia</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Verdana, sans - serif")">Verdana</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Roboto, sans - serif")">Roboto</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("monospace")">Monospace</MudSelectItem>
                 </MudSelect>
                 <MudNumericField T="double" Label="Font size (px)" @bind-Value="_options.FontSize" Min="8" Max="32" Step="1" Variant="Variant.Outlined" />
                 <MudNumericField T="double" Label="Line height" @bind-Value="_options.LineHeight" Min="1" Max="3" Step="0.05" Variant="Variant.Outlined" />
@@ -47,13 +47,13 @@
             {
                 <MudStack Row="true" Spacing="3">
                     <MudSelect T="string" Label="Page format" @bind-Value="_options.PageFormat" Variant="Variant.Outlined">
-                        <MudSelectItem Value="a4">A4</MudSelectItem>
-                        <MudSelectItem Value="letter">Letter</MudSelectItem>
-                        <MudSelectItem Value="legal">Legal</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("a4")">A4</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("letter")">Letter</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("legal")">Legal</MudSelectItem>
                     </MudSelect>
                     <MudSelect T="string" Label="Orientation" @bind-Value="_options.Orientation" Variant="Variant.Outlined">
-                        <MudSelectItem Value="portrait">Portrait</MudSelectItem>
-                        <MudSelectItem Value="landscape">Landscape</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("portrait")">Portrait</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("landscapt")">Landscape</MudSelectItem>
                     </MudSelect>
                     <MudNumericField T="double" Label="Render scale" @bind-Value="_options.Scale" Min="1" Max="4" Step="0.5" Variant="Variant.Outlined" />
                 </MudStack>

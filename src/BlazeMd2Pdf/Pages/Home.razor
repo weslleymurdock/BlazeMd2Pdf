@@ -7,17 +7,22 @@
         <MudIcon Icon="@Icons.Material.Outlined.SyncAlt" /> PDF
     </strong></MudText>
     <MudGrid Class="mt-8">
-        <MudItem xs="12" sm="6" md="4">
+        <MudItem xs="12" sm="12" md="8">
             <MudCard Elevation="25" Class="rounded-lg pb-4">
                 <MudCardContent>
                     <div class="d-flex justify-center">
                         <MudText Typo="Typo.h3">PDF</MudText>
-                        <MudText Typo="Typo.h5" Class="ml-1 mt-5" Color="Color.Secondary">To Markdown</MudText>
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudIcon Title="PDF To Markdown" Icon="@Icons.Material.Outlined.KeyboardDoubleArrowDown"
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h5" Class="ml-1" Color="Color.Secondary">To Markdown</MudText>
                     </div>
                 </MudCardContent>
                 <MudCardActions>
-                    <MudNavLink Href="/tomarkdown">
-                        Convert
+                    <MudNavLink Icon="@Icons.Material.Outlined.PlayLesson" IconColor="@Color.Secondary" Href="/tomarkdown">
+                        <MudText Align="Align.Center">Convert<MudText/>
                     </MudNavLink>
                 </MudCardActions>
             </MudCard>
@@ -27,12 +32,77 @@
                 <MudCardContent>
                     <div class="d-flex justify-center">
                         <MudText Typo="Typo.h3">Markdown</MudText>
-                        <MudText Typo="Typo.h5" Class="ml-1 mt-5" Color="Color.Secondary">to PDF</MudText>
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudIcon Title="Markdown To PDF" Icon="@Icons.Material.Outlined.KeyboardDoubleArrowDown"
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h5" Class="ml-1" Color="Color.Secondary">PDF</MudText>
                     </div>
                 </MudCardContent>
                 <MudCardActions>
-                    <MudNavLink Href="/topdf">
-                        Convert
+                    <MudNavLink Icon="@Icons.Material.Outlined.PlayLesson" IconColor="@Color.Secondary" Href="/topdf">
+                        <MudText Align="Align.Center">Convert<MudText/>
+                    </MudNavLink>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="25" Class="rounded-lg pb-4">
+                <MudCardContent>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h3">Markdown</MudText>
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudIcon Title="Markdown To Jpeg" Icon="@Icons.Material.Outlined.KeyboardDoubleArrowDown"
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h5" Class="ml-1" Color="Color.Secondary">Jpeg</MudText>
+                    </div>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudNavLink Icon="@Icons.Material.Outlined.PlayLesson" IconColor="@Color.Secondary" Href="/tojpeg">
+                        <MudText Align="Align.Center">Convert<MudText/>
+                    </MudNavLink>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="25" Class="rounded-lg pb-4">
+                <MudCardContent>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h3">Markdown</MudText>
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudIcon Title="Markdown To HTML" Icon="@Icons.Material.Outlined.KeyboardDoubleArrowDown"
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h5" Class="ml-1 " Color="Color.Secondary">HTML</MudText>
+                    </div>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudNavLink Icon="@Icons.Material.Outlined.PlayLesson" IconColor="@Color.Secondary" Href="/tohtml">
+                        <MudText Align="Align.Center">Convert<MudText/>
+                    </MudNavLink>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="25" Class="rounded-lg pb-4">
+                <MudCardContent>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h3">Markdown</MudText>
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudIcon Title="Markdown To PNG" Icon="@Icons.Material.Outlined.KeyboardDoubleArrowDown"
+                    </div>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h5" Class="ml-1 " Color="Color.Secondary">PNG</MudText>
+                    </div>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudNavLink Icon="@Icons.Material.Outlined.PlayLesson" IconColor="@Color.Secondary" Href="/topng" >
+                        <MudText Align="Align.Center">Convert<MudText/>
                     </MudNavLink>
                 </MudCardActions>
             </MudCard>

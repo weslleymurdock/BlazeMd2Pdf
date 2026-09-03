@@ -17,7 +17,7 @@
             <MudIcon Style="padding-top: 3px" Icon="@Icons.Material.Outlined.SyncAlt" /> PDF
         </MudText>
         <MudSpacer />
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" Color="@Color.Secondary" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always">
         <MudNavMenu>

@@ -10,7 +10,7 @@ public static class AppTheme
         {
             Primary = "#512BD4",          
             PrimaryContrastText = "#FFFFFF",
-            Secondary = "#00B7C3",        
+            Secondary = "#0077FF",        
             SecondaryContrastText = "#FFFFFF",
             Tertiary = "#FF5252",       
             TertiaryContrastText = "#FFFFFF",
@@ -48,7 +48,7 @@ public static class AppTheme
         {
             Primary = "#7C4DFF",          
             PrimaryContrastText = "#FFFFFF",
-            Secondary = "#00E5FF",        
+            Secondary = "#3B82F6",        
             SecondaryContrastText = "#121212",
             Tertiary = "#FF8A80",         
             TertiaryContrastText = "#121212",

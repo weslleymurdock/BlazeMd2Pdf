@@ -16,11 +16,11 @@
 
 <MudStack Class="pa-6" Spacing="4">
     <MudText Typo="Typo.h4">PDF to Markdown</MudText>
-    <MudText Typo="Typo.body1">Select a PDF, configure how extracted content should be structured, and preview the generated Markdown.</MudText>
+    <MudText Typo="Typo.body1">Extract the PDF while preserving its visual line structure and page boundaries as closely as Markdown permits.</MudText>
 
     <MudPaper Class="pa-4" Elevation="1">
-        <MudText Typo="Typo.h6">Markdown output</MudText>
-        <MudText Typo="Typo.body2" Class="mb-4">These options control whitespace and page-boundary handling in the generated Markdown.</MudText>
+        <MudText Typo="Typo.h6">Layout preservation</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">PDF is a positioned page format, while Markdown is flow-based. These options preserve the information that can be represented reliably.</MudText>
 
         <MudStack Spacing="3">
             <MudNumericField T="int" Label="Blank lines between paragraphs" @bind-Value="_options.ParagraphSpacing" Min="0" Max="3" Step="1" Variant="Variant.Outlined" />
@@ -30,7 +30,11 @@
             </MudSwitch>
 
             <MudSwitch T="bool" @bind-Value="_options.PreserveLineBreaks" Color="Color.Primary">
-                Preserve visual line breaks instead of joining wrapped lines
+                Preserve visual line breaks
+            </MudSwitch>
+
+            <MudSwitch T="bool" @bind-Value="_options.PreserveAlignment" Color="Color.Primary">
+                Preserve alignment metadata when it can be represented in Markdown
             </MudSwitch>
         </MudStack>
     </MudPaper>
@@ -75,46 +79,31 @@
 </MudStack>
 
 @code {
-    /// <summary>
-    /// Gets the maximum accepted PDF size in bytes.
-    /// </summary>
+    /// <summary>Gets the maximum accepted PDF size in bytes.</summary>
     private const long MaxFileSize = 50 * 1024 * 1024;
-
     /// <summary>Indicates whether a conversion is currently running.</summary>
     private bool _busy;
-
     /// <summary>Contains the current user-facing error message.</summary>
     private string? _error;
-
     /// <summary>Stores the selected Markdown presentation options.</summary>
     private MarkdownConversionOptions _options = new();
-
     /// <summary>Stores the currently selected browser file.</summary>
     private IBrowserFile? _selectedFile;
-
     /// <summary>Provides cancellation for the current conversion operation.</summary>
     private CancellationTokenSource _cancellationTokenSource = new();
 
-    /// <summary>
-    /// Processes the selected PDF file without starting conversion automatically.
-    /// </summary>
+    /// <summary>Processes the selected PDF file without starting conversion automatically.</summary>
     /// <param name="file">The selected browser file.</param>
     private Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
         _selectedFile = null;
-
-        if (file is null)
-        {
-            return Task.CompletedTask;
-        }
-
+        if (file is null) return Task.CompletedTask;
         if (!string.Equals(Path.GetExtension(file.Name), ".pdf", StringComparison.OrdinalIgnoreCase))
         {
             _error = "Only PDF files are supported.";
             return Task.CompletedTask;
         }
-
         _selectedFile = file;
         return Task.CompletedTask;
     }
@@ -123,31 +112,22 @@
     private async Task ConvertSelectedFileAsync()
     {
         var selectedFile = _selectedFile;
-        if (selectedFile is null)
-        {
-            return;
-        }
-
+        if (selectedFile is null) return;
         _cancellationTokenSource.Cancel();
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = _cancellationTokenSource.Token;
-
         _busy = true;
         _error = null;
-
         try
         {
             await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
             var markdown = await ConverterService.ConvertPdfToMarkdownAsync(stream, _options, cancellationToken);
-
-            await DialogService.ShowAsync<MarkdownViewer>(
-                "Markdown preview",
-                new DialogParameters<MarkdownViewer>
-                {
-                    { viewer => viewer.Markdown, markdown },
-                    { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".md") }
-                });
+            await DialogService.ShowAsync<MarkdownViewer>("Markdown preview", new DialogParameters<MarkdownViewer>
+            {
+                { viewer => viewer.Markdown, markdown },
+                { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".md") }
+            });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -117,13 +117,18 @@
         _error = null;
         _fontSelectionRequired = false;
         _selectedFile = null;
-        if (file is null) return Task.CompletedTask;
+        if (file is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var extension = Path.GetExtension(file.Name);
         if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) && !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
         {
             _error = "Only Markdown files are supported.";
             return Task.CompletedTask;
         }
+
         _selectedFile = file;
         return Task.CompletedTask;
     }
@@ -132,7 +137,13 @@
     private async Task ConvertSelectedFileAsync()
     {
         var selectedFile = _selectedFile;
-        if (selectedFile is null || _markdownHtmlRenderer is null) return;
+        var markdownHtmlRenderer = _markdownHtmlRenderer;
+        if (selectedFile is null || markdownHtmlRenderer is null)
+        {
+            _error = "The Markdown renderer is not ready. Please try again.";
+            return;
+        }
+
         _cancellationTokenSource.Cancel();
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
@@ -140,17 +151,24 @@
         _busy = true;
         _error = null;
         _fontSelectionRequired = false;
+
         try
         {
             await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
             var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
-            var html = await _markdownHtmlRenderer.RenderHtmlAsync(markdown, cancellationToken);
-            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(html, _options, cancellationToken);
-            await DialogService.ShowAsync<PdfViewer>("PDF preview", new DialogParameters<PdfViewer>
+            var html = await markdownHtmlRenderer.RenderHtmlAsync(markdown, cancellationToken);
+            if (string.IsNullOrWhiteSpace(html))
             {
-                { viewer => viewer.Content, pdfBytes },
-                { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".pdf") }
-            });
+                throw new InvalidOperationException("MudMarkdown produced an empty HTML document.");
+            }
+
+            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(html, _options, cancellationToken);
+            var parameters = new DialogParameters
+            {
+                ["Content"] = pdfBytes,
+                ["FileName"] = Path.ChangeExtension(selectedFile.Name, ".pdf")
+            };
+            await DialogService.ShowAsync<PdfViewer>("PDF preview", parameters);
         }
         catch (UnsupportedFontCharacterException exception)
         {
@@ -162,7 +180,7 @@
         }
         catch (Exception exception)
         {
-            _error = exception.Message;
+            _error = exception.ToString();
         }
         finally
         {

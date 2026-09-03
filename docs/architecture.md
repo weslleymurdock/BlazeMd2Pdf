@@ -8,7 +8,9 @@
 
 `Services/Abstract/IConverterService.cs` defines the application conversion contract. `Services/Concrete/ConverterService.cs` implements Markdown reading, PDF text extraction, Markdown-to-PDF generation, and PDF-to-Markdown conversion.
 
-The service intentionally works with `Stream` and `string` values so the UI remains responsible for browser file selection and downloading.
+Browser file streams are copied asynchronously into memory before PdfPig opens a PDF. PdfPig's PDF parser is synchronous, so this avoids synchronous reads directly against the browser-provided stream while preserving cancellation during the asynchronous copy.
+
+Markdown-to-PDF uses embedded TrueType font bytes loaded asynchronously from open document-font distributions. The available families are Liberation Sans (metric-compatible with Arial), Liberation Serif (metric-compatible with Times New Roman), Liberation Mono (metric-compatible with Courier New), and Noto Sans for broader Unicode coverage. The UI exposes the font selector when PdfPig reports that the selected font lacks a source character.
 
 ## Pages
 
@@ -19,6 +21,12 @@ The service intentionally works with `Stream` and `string` values so the UI rema
 
 - `Controls/MarkdownViewer.razor` is the Markdown preview dialog.
 - `Controls/PdfViewer.razor` is the generated PDF result dialog.
+
+## Font licensing
+
+The Liberation font family is distributed under the SIL Open Font License. The converter retrieves the published font files at runtime rather than bundling proprietary Microsoft font files such as Arial or Times New Roman. This keeps the application distributable without redistributing proprietary fonts.
+
+Noto Sans is provided as the broader-Unicode fallback. No font can guarantee every Unicode character, so the converter reports unsupported characters instead of silently replacing them.
 
 ## Dependencies
 

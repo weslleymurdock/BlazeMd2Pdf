@@ -34,6 +34,28 @@
         </CustomContent>
     </MudFileUpload>
 
+    @if (_fontSelectionRequired)
+    {
+        <MudAlert Severity="Severity.Warning">
+            The selected font cannot represent a character in this document. Choose another document font and try again.
+        </MudAlert>
+
+        <MudSelect T="string" Label="Document font" @bind-Value="_selectedFont">
+            @foreach (var font in ConverterService.AvailableFonts)
+            {
+                <MudSelectItem T="string" Value="@font.Key">@font.DisplayName</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@_busy"
+                   OnClick="ConvertSelectedFileAsync"
+                   StartIcon="@Icons.Material.Filled.PictureAsPdf">
+            Try selected font
+        </MudButton>
+    }
+
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
@@ -62,17 +84,34 @@
     private string? _error;
 
     /// <summary>
+    /// Indicates whether the user must choose another font.
+    /// </summary>
+    private bool _fontSelectionRequired;
+
+    /// <summary>
+    /// Stores the selected document font.
+    /// </summary>
+    private string _selectedFont = "liberation-sans";
+
+    /// <summary>
+    /// Stores the currently selected browser file.
+    /// </summary>
+    private IBrowserFile? _selectedFile;
+
+    /// <summary>
     /// Provides cancellation for the current conversion operation.
     /// </summary>
     private CancellationTokenSource _cancellationTokenSource = new();
 
     /// <summary>
-    /// Processes the selected Markdown file and opens the generated PDF dialog.
+    /// Processes the selected Markdown file.
     /// </summary>
     /// <param name="file">The selected browser file.</param>
     private async Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
+        _fontSelectionRequired = false;
+        _selectedFile = null;
 
         if (file is null)
         {
@@ -87,26 +126,48 @@
             return;
         }
 
+        _selectedFile = file;
+        await ConvertSelectedFileAsync();
+    }
+
+    /// <summary>
+    /// Converts the selected Markdown file using the currently selected document font.
+    /// </summary>
+    private async Task ConvertSelectedFileAsync()
+    {
+        var selectedFile = _selectedFile;
+        if (selectedFile is null)
+        {
+            return;
+        }
+
         _cancellationTokenSource.Cancel();
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = _cancellationTokenSource.Token;
 
         _busy = true;
+        _error = null;
 
         try
         {
-            await using var stream = file.OpenReadStream(MaxFileSize, cancellationToken);
+            await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
             var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
-            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, cancellationToken);
+            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, _selectedFont, cancellationToken);
 
+            _fontSelectionRequired = false;
             await DialogService.ShowAsync<PdfViewer>(
                 "PDF preview",
                 new DialogParameters<PdfViewer>
                 {
                     { viewer => viewer.Content, pdfBytes },
-                    { viewer => viewer.FileName, Path.ChangeExtension(file.Name, ".pdf") }
+                    { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".pdf") }
                 });
+        }
+        catch (UnsupportedFontCharacterException exception)
+        {
+            _fontSelectionRequired = true;
+            _error = exception.Message;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

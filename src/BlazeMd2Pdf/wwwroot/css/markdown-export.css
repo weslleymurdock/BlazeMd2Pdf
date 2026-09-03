@@ -1,0 +1,118 @@
+.markdown-export-preview-host {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    overflow: auto;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.markdown-export-document {
+    box-sizing: border-box;
+    background: white;
+    color: #1f2328;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.16);
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.markdown-export-document > * {
+    box-sizing: border-box;
+}
+
+.markdown-export-document p {
+    margin: 0 0 1em;
+}
+
+.markdown-export-document h1,
+.markdown-export-document h2,
+.markdown-export-document h3,
+.markdown-export-document h4,
+.markdown-export-document h5,
+.markdown-export-document h6 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    line-height: 1.25;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+.markdown-export-document h1 {
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+}
+
+.markdown-export-document img {
+    max-width: 100%;
+    height: auto;
+}
+
+.markdown-export-document table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.markdown-export-document th,
+.markdown-export-document td {
+    padding: 6px 10px;
+    border: 1px solid #d0d7de;
+    vertical-align: top;
+}
+
+.markdown-export-document blockquote {
+    margin: 1em 0;
+    padding: 0 1em;
+    border-left: 4px solid #d0d7de;
+    color: #59636e;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.markdown-export-document pre {
+    padding: 16px;
+    overflow: auto;
+    background: #f6f8fa;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.markdown-export-document code {
+    font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.markdown-export-document ul,
+.markdown-export-document ol {
+    padding-left: 2em;
+}
+
+.markdown-export-document li + li {
+    margin-top: 0.25em;
+}
+
+.markdown-export-document hr {
+    height: 1px;
+    margin: 1.5em 0;
+    border: 0;
+    border-top: 1px solid #d0d7de;
+}
+
+.markdown-export-document a {
+    color: #0969da;
+    text-decoration: none;
+}
+
+@media print {
+    .markdown-export-preview-host {
+        padding: 0;
+    }
+
+    .markdown-export-document {
+        box-shadow: none;
+    }
+}

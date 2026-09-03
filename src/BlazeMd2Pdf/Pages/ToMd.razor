@@ -1,1 +1,151 @@
+@namespace BlazeMd2Pdf.Pages
+
 @page "/tomarkdown"
+
+@using BlazeMd2Pdf.Controls
+@using BlazeMd2Pdf.Services.Abstract
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+@implements IDisposable
+
+@inject IConverterService ConverterService
+@inject IDialogService DialogService
+
+<PageTitle>PDF to Markdown</PageTitle>
+
+<MudStack Class="pa-6" Spacing="4">
+    <MudText Typo="Typo.h4">PDF to Markdown</MudText>
+    <MudText Typo="Typo.body1">Extract the PDF while preserving its visual line structure and page boundaries as closely as Markdown permits.</MudText>
+
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6">Layout preservation</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">PDF is a positioned page format, while Markdown is flow-based. These options preserve the information that can be represented reliably.</MudText>
+
+        <MudStack Spacing="3">
+            <MudNumericField T="int" Label="Blank lines between paragraphs" @bind-Value="_options.ParagraphSpacing" Min="0" Max="3" Step="1" Variant="Variant.Outlined" />
+
+            <MudSwitch T="bool" @bind-Value="_options.PreservePageBreaks" Color="Color.Primary">
+                Preserve PDF page breaks
+            </MudSwitch>
+
+            <MudSwitch T="bool" @bind-Value="_options.PreserveLineBreaks" Color="Color.Primary">
+                Preserve visual line breaks
+            </MudSwitch>
+
+            <MudSwitch T="bool" @bind-Value="_options.PreserveAlignment" Color="Color.Primary">
+                Preserve alignment metadata when it can be represented in Markdown
+            </MudSwitch>
+        </MudStack>
+    </MudPaper>
+
+    <MudFileUpload T="IBrowserFile"
+                   Accept=".pdf"
+                   MaximumFileCount="1"
+                   MaxFileSize="@MaxFileSize"
+                   Disabled="@_busy"
+                   FilesChanged="OnFileSelected">
+        <CustomContent>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@context.OpenFilePickerAsync"
+                       StartIcon="@Icons.Material.Filled.UploadFile">
+                Select PDF
+            </MudButton>
+        </CustomContent>
+    </MudFileUpload>
+
+    @if (_selectedFile is not null)
+    {
+        <MudText Typo="Typo.body2">Selected: @_selectedFile.Name</MudText>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@_busy"
+                   OnClick="ConvertSelectedFileAsync"
+                   StartIcon="@Icons.Material.Filled.Description">
+            Generate Markdown
+        </MudButton>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+</MudStack>
+
+@code {
+    /// <summary>Gets the maximum accepted PDF size in bytes.</summary>
+    private const long MaxFileSize = 50 * 1024 * 1024;
+    /// <summary>Indicates whether a conversion is currently running.</summary>
+    private bool _busy;
+    /// <summary>Contains the current user-facing error message.</summary>
+    private string? _error;
+    /// <summary>Stores the selected Markdown presentation options.</summary>
+    private MarkdownConversionOptions _options = new();
+    /// <summary>Stores the currently selected browser file.</summary>
+    private IBrowserFile? _selectedFile;
+    /// <summary>Provides cancellation for the current conversion operation.</summary>
+    private CancellationTokenSource _cancellationTokenSource = new();
+
+    /// <summary>Processes the selected PDF file without starting conversion automatically.</summary>
+    /// <param name="file">The selected browser file.</param>
+    private Task OnFileSelected(IBrowserFile? file)
+    {
+        _error = null;
+        _selectedFile = null;
+        if (file is null) return Task.CompletedTask;
+        if (!string.Equals(Path.GetExtension(file.Name), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Only PDF files are supported.";
+            return Task.CompletedTask;
+        }
+        _selectedFile = file;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Converts the selected PDF using the configured Markdown options.</summary>
+    private async Task ConvertSelectedFileAsync()
+    {
+        var selectedFile = _selectedFile;
+        if (selectedFile is null) return;
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+        _busy = true;
+        _error = null;
+        try
+        {
+            await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
+            var markdown = await ConverterService.ConvertPdfToMarkdownAsync(stream, _options, cancellationToken);
+            await DialogService.ShowAsync<MarkdownViewer>("Markdown preview", new DialogParameters<MarkdownViewer>
+            {
+                { viewer => viewer.Markdown, markdown },
+                { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".md") }
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Releases resources used to cancel the current conversion operation.</summary>
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+    }
+}

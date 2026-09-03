@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <MudThemeProvider @ref="_provider" Theme="@Theme.AppTheme.Md2Pdf" @bind-IsDarkMode="_isDarkMode" />
 <MudDialogProvider />
@@ -9,33 +9,37 @@
     <MudAppBar>
         <MudIconButton Icon="@(_drawerOpen ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
                        Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
-        <MudIcon Icon="@Icons.Material.Outlined.Home" Href="/" />
+        <MudLink Href="/">
+            <MudIcon Icon="@Icons.Material.Outlined.Home" />
+        </MudLink>
         <MudSpacer />
         <MudText Align="Align.Start" Typo="Typo.h4">Blaze Markdown
             <MudIcon Style="padding-top: 3px" Icon="@Icons.Material.Outlined.SyncAlt" /> PDF
         </MudText>
         <MudSpacer />
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" Color="@Color.Secondary" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always">
         <MudNavMenu>
             <MudNavLink Icon="@Icons.Material.Outlined.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
-            <MudNavGroup Icon="@Icons.Material.Outlined.LooksTwo" Title="Converter" Expanded="true">
-                <MudNavLink Icon="@Icons.Custom.FileFormats.FilePdf" Href="/topdf" Match="NavLinkMatch.Prefix">To PDF
-                </MudNavLink>
-                <MudNavLink Icon="@Icons.Custom.FileFormats.FileCode" Href="/tomarkdown" Match="NavLinkMatch.Prefix">To
-                    Markdown</MudNavLink>
-                </MudNavGroup>
-                <MudNavLink Icon="@Icons.Material.Outlined.Info" Href="/about" Match="NavLinkMatch.Prefix">About
-                </MudNavLink>
-            </MudNavMenu>
-        </MudDrawer>
-        <MudMainContent>
-            <MudContainer>
-                @Body
-            </MudContainer>
-        </MudMainContent>
-    </MudLayout>
+            <MudNavGroup Icon="@Icons.Material.Outlined.LooksTwo" Title="Markdown Export" Expanded="true">
+                <MudNavLink Icon="@Icons.Custom.FileFormats.FilePdf" Href="/topdf" Match="NavLinkMatch.Prefix">PDF</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Outlined.Code" Href="/tohtml" Match="NavLinkMatch.Prefix">HTML</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Outlined.Image" Href="/topng" Match="NavLinkMatch.Prefix">PNG</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Outlined.Image" Href="/tojpeg" Match="NavLinkMatch.Prefix">JPEG</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Icon="@Icons.Custom.FileFormats.FileCode" Title="Import" Expanded="true">
+                <MudNavLink Icon="@Icons.Custom.FileFormats.FileCode" Href="/tomarkdown" Match="NavLinkMatch.Prefix">To Markdown</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink Icon="@Icons.Material.Outlined.Info" Href="/about" Match="NavLinkMatch.Prefix">About</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer>
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 @code {
     bool _drawerOpen = true;

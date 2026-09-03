@@ -16,11 +16,11 @@
 
 <MudStack Class="pa-6" Spacing="4">
     <MudText Typo="Typo.h4">Markdown to PDF</MudText>
-    <MudText Typo="Typo.body1">Select a Markdown file, configure the document appearance, and preview the generated PDF.</MudText>
+    <MudText Typo="Typo.body1">Select a Markdown file, configure the page like a word processor, and preview the generated PDF.</MudText>
 
     <MudPaper Class="pa-4" Elevation="1">
-        <MudText Typo="Typo.h6">PDF appearance</MudText>
-        <MudText Typo="Typo.body2" Class="mb-4">The defaults are designed for a clean, readable A4 document.</MudText>
+        <MudText Typo="Typo.h6">Document layout</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">Margins define the printable area. Left and right margins are independent from top and bottom margins.</MudText>
 
         <MudStack Spacing="3">
             <MudSelect T="string" Label="Font" @bind-Value="_options.FontKey" Variant="Variant.Outlined">
@@ -31,18 +31,31 @@
             </MudSelect>
 
             <MudStack Row="true" Spacing="3">
-                <MudNumericField T="double" Label="Body font size (pt)" @bind-Value="_options.FontSize" Min="8" Max="18" Step="0.5" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Font size (pt)" @bind-Value="_options.FontSize" Min="8" Max="18" Step="0.5" Variant="Variant.Outlined" />
                 <MudNumericField T="double" Label="Line spacing" @bind-Value="_options.LineSpacing" Min="1" Max="2.5" Step="0.05" Variant="Variant.Outlined" />
+                <MudSelect T="DocumentTextAlignment" Label="Text alignment" @bind-Value="_options.Alignment" Variant="Variant.Outlined">
+                    <MudSelectItem Value="DocumentTextAlignment.Left">Left</MudSelectItem>
+                    <MudSelectItem Value="DocumentTextAlignment.Center">Center</MudSelectItem>
+                    <MudSelectItem Value="DocumentTextAlignment.Right">Right</MudSelectItem>
+                    <MudSelectItem Value="DocumentTextAlignment.Justify">Justify</MudSelectItem>
+                </MudSelect>
             </MudStack>
 
+            <MudText Typo="Typo.subtitle2">Page margins</MudText>
             <MudStack Row="true" Spacing="3">
-                <MudNumericField T="double" Label="Page margin (mm)" @bind-Value="_options.PageMargin" Min="10" Max="40" Step="1" Variant="Variant.Outlined" />
-                <MudNumericField T="double" Label="Paragraph spacing (pt)" @bind-Value="_options.ParagraphSpacing" Min="0" Max="24" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Left / right (mm)" @bind-Value="_options.HorizontalMargin" Min="5" Max="60" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Top (mm)" @bind-Value="_options.TopMargin" Min="5" Max="60" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Bottom (mm)" @bind-Value="_options.BottomMargin" Min="5" Max="60" Step="1" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudText Typo="Typo.subtitle2">Paragraph spacing</MudText>
+            <MudStack Row="true" Spacing="3">
+                <MudNumericField T="double" Label="Paragraph after (pt)" @bind-Value="_options.ParagraphSpacing" Min="0" Max="24" Step="1" Variant="Variant.Outlined" />
                 <MudNumericField T="double" Label="Heading spacing (pt)" @bind-Value="_options.HeadingSpacing" Min="0" Max="30" Step="1" Variant="Variant.Outlined" />
             </MudStack>
 
             <MudSwitch T="bool" @bind-Value="_options.KeepHeadingWithNext" Color="Color.Primary">
-                Keep headings with the following content when possible
+                Keep headings with following content when possible
             </MudSwitch>
         </MudStack>
     </MudPaper>
@@ -94,101 +107,61 @@
 </MudStack>
 
 @code {
-    /// <summary>
-    /// Gets the maximum accepted Markdown size in bytes.
-    /// </summary>
+    /// <summary>Gets the maximum accepted Markdown size in bytes.</summary>
     private const long MaxFileSize = 10 * 1024 * 1024;
-
-    /// <summary>
-    /// Indicates whether a conversion is currently running.
-    /// </summary>
+    /// <summary>Indicates whether a conversion is currently running.</summary>
     private bool _busy;
-
-    /// <summary>
-    /// Contains the current user-facing error message.
-    /// </summary>
+    /// <summary>Contains the current user-facing error message.</summary>
     private string? _error;
-
-    /// <summary>
-    /// Indicates whether the user must choose another font.
-    /// </summary>
+    /// <summary>Indicates whether the user must choose another font.</summary>
     private bool _fontSelectionRequired;
-
-    /// <summary>
-    /// Stores the selected PDF presentation options.
-    /// </summary>
+    /// <summary>Stores the selected PDF presentation options.</summary>
     private PdfConversionOptions _options = new();
-
-    /// <summary>
-    /// Stores the currently selected browser file.
-    /// </summary>
+    /// <summary>Stores the currently selected browser file.</summary>
     private IBrowserFile? _selectedFile;
-
-    /// <summary>
-    /// Provides cancellation for the current conversion operation.
-    /// </summary>
+    /// <summary>Provides cancellation for the current conversion operation.</summary>
     private CancellationTokenSource _cancellationTokenSource = new();
 
-    /// <summary>
-    /// Processes the selected Markdown file without starting conversion automatically.
-    /// </summary>
+    /// <summary>Processes the selected Markdown file without starting conversion automatically.</summary>
     /// <param name="file">The selected browser file.</param>
     private Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
         _fontSelectionRequired = false;
         _selectedFile = null;
-
-        if (file is null)
-        {
-            return Task.CompletedTask;
-        }
-
+        if (file is null) return Task.CompletedTask;
         var extension = Path.GetExtension(file.Name);
-        if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) && !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
         {
             _error = "Only Markdown files are supported.";
             return Task.CompletedTask;
         }
-
         _selectedFile = file;
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Converts the selected Markdown file using the configured PDF options.
-    /// </summary>
+    /// <summary>Converts the selected Markdown file using the configured PDF options.</summary>
     private async Task ConvertSelectedFileAsync()
     {
         var selectedFile = _selectedFile;
-        if (selectedFile is null)
-        {
-            return;
-        }
-
+        if (selectedFile is null) return;
         _cancellationTokenSource.Cancel();
         _cancellationTokenSource.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = _cancellationTokenSource.Token;
-
         _busy = true;
         _error = null;
         _fontSelectionRequired = false;
-
         try
         {
             await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
             var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
             var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, _options, cancellationToken);
-
-            await DialogService.ShowAsync<PdfViewer>(
-                "PDF preview",
-                new DialogParameters<PdfViewer>
-                {
-                    { viewer => viewer.Content, pdfBytes },
-                    { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".pdf") }
-                });
+            await DialogService.ShowAsync<PdfViewer>("PDF preview", new DialogParameters<PdfViewer>
+            {
+                { viewer => viewer.Content, pdfBytes },
+                { viewer => viewer.FileName, Path.ChangeExtension(selectedFile.Name, ".pdf") }
+            });
         }
         catch (UnsupportedFontCharacterException exception)
         {
@@ -208,9 +181,7 @@
         }
     }
 
-    /// <summary>
-    /// Releases resources used to cancel the current conversion operation.
-    /// </summary>
+    /// <summary>Releases resources used to cancel the current conversion operation.</summary>
     public void Dispose()
     {
         _cancellationTokenSource.Cancel();

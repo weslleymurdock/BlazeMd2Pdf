@@ -14,46 +14,34 @@
     </DialogContent>
     <DialogActions>
         <MudButton StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadAsync">Download</MudButton>
-        <MudButton StartIcon="@Icons.Material.Outlined.Close" OnClick="Cancel">Close</MudButton>
+        <MudButton OnClick="Cancel">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    /// <summary>
-    /// Gets or sets the Markdown content to display and download.
-    /// </summary>
+    /// <summary>Gets or sets the Markdown content to display and download.</summary>
     [Parameter]
     public string Markdown { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the suggested Markdown file name.
-    /// </summary>
+    /// <summary>Gets or sets the suggested Markdown file name.</summary>
     [Parameter]
     public string FileName { get; set; } = "converted.md";
 
-    /// <summary>
-    /// Gets the dialog instance supplied by MudBlazor.
-    /// </summary>
+    /// <summary>Gets the dialog instance supplied by MudBlazor.</summary>
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
 
-    /// <summary>
-    /// Provides JavaScript interop for initiating a browser download.
-    /// </summary>
+    /// <summary>Provides JavaScript interop for initiating a browser download.</summary>
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
 
-    /// <summary>
-    /// Downloads the displayed Markdown as a UTF-8 text file.
-    /// </summary>
+    /// <summary>Downloads the displayed Markdown as a UTF-8 text file.</summary>
     private async Task DownloadAsync()
     {
         await JsRuntime.InvokeVoidAsync("blazeMd2Pdf.downloadTextFile", FileName, Markdown);
     }
 
-    /// <summary>
-    /// Closes the dialog without returning a result.
-    /// </summary>
+    /// <summary>Closes the dialog without returning a result.</summary>
     private void Cancel()
     {
         MudDialog.Cancel();

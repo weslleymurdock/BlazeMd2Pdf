@@ -2,7 +2,40 @@
 
 <PageTitle>Home</PageTitle>
 
-<MudPaper Elevation="0">
-    <MudText Align="Align.Center" Typo="Typo.h3">Welcome to the <strong>Blaze Mardown to PDF</strong></MudText>
-
-</MudPaper>
+<MudStack Style="pa-12">
+    <MudText Align="Align.Center" Typo="Typo.h3" Style="padding-top:10px">Welcome to the Blaze <strong>Markdown
+        <MudIcon Icon="@Icons.Material.Outlined.SyncAlt" /> PDF
+    </strong></MudText>
+    <MudGrid Class="mt-8">
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="25" Class="rounded-lg pb-4">
+                <MudCardContent>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h3">PDF</MudText>
+                        <MudText Typo="Typo.h5" Class="ml-1 mt-5" Color="Color.Secondary">To Markdown</MudText>
+                    </div>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudNavLink Href="/tomarkdown">
+                        Convert
+                    </MudNavLink>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="25" Class="rounded-lg pb-4">
+                <MudCardContent>
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h3">Markdown</MudText>
+                        <MudText Typo="Typo.h5" Class="ml-1 mt-5" Color="Color.Secondary">to PDF</MudText>
+                    </div>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudNavLink Href="/topdf">
+                        Convert
+                    </MudNavLink>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudStack>

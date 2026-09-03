@@ -1,0 +1,28 @@
+name: Continuous
+
+on:
+  push:
+    branches: [ main ] 
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
+permissions:
+  contents: write 
+  
+jobs:
+  build:
+    name: Integration
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout 
+      uses: actions/checkout@v7
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x' 
+
+    - name: Build
+      run: dotnet build ./BlazeMd2Pdf.slnx -c Release 
+

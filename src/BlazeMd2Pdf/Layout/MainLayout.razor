@@ -1,6 +1,6 @@
 ﻿@inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider @ref="_provider" Theme="@Theme.AppTheme.Md2Pdf" @bind-IsDarkMode="_isDarkMode" />
 <MudDialogProvider />
 <MudPopoverProvider />
 <MudSnackbarProvider />
@@ -9,7 +9,13 @@
     <MudAppBar>
         <MudIconButton Icon="@(_drawerOpen ? Icons.Material.Filled.MenuOpen : Icons.Material.Filled.Menu)"
                        Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
-        <MudText Align="Align.Start" Typo="Typo.body1">Blaze Markdown To PDF</MudText>
+        <MudIcon Icon="@Icons.Material.Outlined.Home" Href="/" />
+        <MudSpacer />
+        <MudText Align="Align.Start" Typo="Typo.h4">Blaze Markdown
+            <MudIcon Style="padding-top: 3px" Icon="@Icons.Material.Outlined.SyncAlt" /> PDF
+        </MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always">
         <MudNavMenu>
@@ -33,4 +39,6 @@
 
 @code {
     bool _drawerOpen = true;
+    bool _isDarkMode = true;
+    MudThemeProvider _provider = default!;
 }

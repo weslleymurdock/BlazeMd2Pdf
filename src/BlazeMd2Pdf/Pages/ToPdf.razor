@@ -1,7 +1,13 @@
+@namespace BlazeMd2Pdf.Pages
+
 @page "/topdf"
 
 @using BlazeMd2Pdf.Controls
 @using BlazeMd2Pdf.Services.Abstract
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+@implements IDisposable
 
 @inject IConverterService ConverterService
 @inject IDialogService DialogService
@@ -10,18 +16,29 @@
 
 <MudStack Class="pa-6" Spacing="4">
     <MudText Typo="Typo.h4">Markdown to PDF</MudText>
-    <MudText Typo="Typo.body1">Upload a Markdown document to generate a PDF.</MudText>
-    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".md,.markdown" MaximumFileCount="1" Disabled="@_busy">
-        <ActivatorContent>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@_busy">
+    <MudText Typo="Typo.body1">Select a Markdown file to generate a PDF.</MudText>
+
+    <MudFileUpload T="IBrowserFile"
+                   Accept=".md, .markdown"
+                   MaximumFileCount="1"
+                   MaxFileSize="@MaxFileSize"
+                   Disabled="@_busy"
+                   FilesChanged="OnFileSelected">
+        <CustomContent>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@context.OpenFilePickerAsync"
+                       StartIcon="@Icons.Material.Filled.UploadFile">
                 Select Markdown
             </MudButton>
-        </ActivatorContent>
+        </CustomContent>
     </MudFileUpload>
+
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
     }
+
     @if (_busy)
     {
         <MudProgressLinear Indeterminate="true" />
@@ -29,18 +46,38 @@
 </MudStack>
 
 @code {
+    /// <summary>
+    /// Gets the maximum accepted Markdown size in bytes.
+    /// </summary>
+    private const long MaxFileSize = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Indicates whether a conversion is currently running.
+    /// </summary>
     private bool _busy;
+
+    /// <summary>
+    /// Contains the current user-facing error message.
+    /// </summary>
     private string? _error;
 
     /// <summary>
-    /// Processes the selected Markdown file and opens the PDF preview dialog.
+    /// Provides cancellation for the current conversion operation.
+    /// </summary>
+    private CancellationTokenSource _cancellationTokenSource = new();
+
+    /// <summary>
+    /// Processes the selected Markdown file and opens the generated PDF dialog.
     /// </summary>
     /// <param name="file">The selected browser file.</param>
     private async Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
+
         if (file is null)
+        {
             return;
+        }
 
         var extension = Path.GetExtension(file.Name);
         if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) &&
@@ -50,14 +87,29 @@
             return;
         }
 
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+
         _busy = true;
+
         try
         {
-            await using var stream = file.OpenReadStream(10 * 1024 * 1024);
-            var markdown = await ConverterService.ReadMarkdownAsync(stream);
-            await using var pdf = await ConverterService.ConvertMarkdownToPdfAsync(markdown);
-            _ = pdf;
-            await DialogService.ShowAsync<PdfViewer>("PDF preview", new DialogParameters<PdfViewer> { { x => x.FileName, Path.ChangeExtension(file.Name, ".pdf") } });
+            await using var stream = file.OpenReadStream(MaxFileSize, cancellationToken);
+            var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
+            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, cancellationToken);
+
+            await DialogService.ShowAsync<PdfViewer>(
+                "PDF preview",
+                new DialogParameters<PdfViewer>
+                {
+                    { viewer => viewer.Content, pdfBytes },
+                    { viewer => viewer.FileName, Path.ChangeExtension(file.Name, ".pdf") }
+                });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -67,5 +119,14 @@
         {
             _busy = false;
         }
+    }
+
+    /// <summary>
+    /// Releases resources used to cancel the current conversion operation.
+    /// </summary>
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
     }
 }

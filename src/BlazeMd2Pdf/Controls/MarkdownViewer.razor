@@ -1,26 +1,61 @@
-@using BlazeMd2Pdf.Services.Abstract
+@namespace BlazeMd2Pdf.Controls
 
-@inject IConverterService ConverterService
-@inject IDialogService DialogService
+@using Microsoft.JSInterop
+@using MudBlazor
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">Markdown preview</MudText>
     </TitleContent>
     <DialogContent>
-        <MudMarkdown Value="@Markdown" />
+        <MudPaper Class="pa-4">
+            <MudMarkdown Value="@Markdown" />
+        </MudPaper>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton OnClick="DownloadAsync" StartIcon="@Icons.Material.Filled.Download">Download</MudButton>
+        <MudButton OnClick="Cancel">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     /// <summary>
-    /// Gets or sets the Markdown content to display.
+    /// Gets or sets the Markdown content to display and download.
     /// </summary>
     [Parameter]
     public string Markdown { get; set; } = string.Empty;
 
-    private void Close() => DialogService.Close();
+    /// <summary>
+    /// Gets or sets the suggested Markdown file name.
+    /// </summary>
+    [Parameter]
+    public string FileName { get; set; } = "converted.md";
+
+    /// <summary>
+    /// Gets the dialog instance supplied by MudBlazor.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// Provides JavaScript interop for initiating a browser download.
+    /// </summary>
+    [Inject]
+    private IJSRuntime JsRuntime { get; set; } = default!;
+
+    /// <summary>
+    /// Downloads the displayed Markdown as a UTF-8 text file.
+    /// </summary>
+    private async Task DownloadAsync()
+    {
+        await JsRuntime.InvokeVoidAsync("blazeMd2Pdf.downloadTextFile", FileName, Markdown);
+    }
+
+    /// <summary>
+    /// Closes the dialog without returning a result.
+    /// </summary>
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
 }

@@ -1,7 +1,13 @@
+@namespace BlazeMd2Pdf.Pages
+
 @page "/tomarkdown"
 
 @using BlazeMd2Pdf.Controls
 @using BlazeMd2Pdf.Services.Abstract
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+@implements IDisposable
 
 @inject IConverterService ConverterService
 @inject IDialogService DialogService
@@ -10,18 +16,29 @@
 
 <MudStack Class="pa-6" Spacing="4">
     <MudText Typo="Typo.h4">PDF to Markdown</MudText>
-    <MudText Typo="Typo.body1">Upload a PDF document to extract its text as Markdown.</MudText>
-    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf" MaximumFileCount="1" Disabled="@_busy">
-        <ActivatorContent>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@_busy">
+    <MudText Typo="Typo.body1">Select a PDF file to extract its text as Markdown.</MudText>
+
+    <MudFileUpload T="IBrowserFile"
+                   Accept=".pdf"
+                   MaximumFileCount="1"
+                   MaxFileSize="@MaxFileSize"
+                   Disabled="@_busy"
+                   FilesChanged="OnFileSelected">
+        <CustomContent>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@context.OpenFilePickerAsync"
+                       StartIcon="@Icons.Material.Filled.UploadFile">
                 Select PDF
             </MudButton>
-        </ActivatorContent>
+        </CustomContent>
     </MudFileUpload>
+
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
     }
+
     @if (_busy)
     {
         <MudProgressLinear Indeterminate="true" />
@@ -29,8 +46,25 @@
 </MudStack>
 
 @code {
+    /// <summary>
+    /// Gets the maximum accepted PDF size in bytes.
+    /// </summary>
+    private const long MaxFileSize = 50 * 1024 * 1024;
+
+    /// <summary>
+    /// Indicates whether a conversion is currently running.
+    /// </summary>
     private bool _busy;
+
+    /// <summary>
+    /// Contains the current user-facing error message.
+    /// </summary>
     private string? _error;
+
+    /// <summary>
+    /// Provides cancellation for the current conversion operation.
+    /// </summary>
+    private CancellationTokenSource _cancellationTokenSource = new();
 
     /// <summary>
     /// Processes the selected PDF file and opens the Markdown preview dialog.
@@ -39,8 +73,11 @@
     private async Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
+
         if (file is null)
+        {
             return;
+        }
 
         if (!string.Equals(Path.GetExtension(file.Name), ".pdf", StringComparison.OrdinalIgnoreCase))
         {
@@ -48,12 +85,28 @@
             return;
         }
 
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+
         _busy = true;
+
         try
         {
-            await using var stream = file.OpenReadStream(50 * 1024 * 1024);
-            var markdown = await ConverterService.ConvertPdfToMarkdownAsync(stream);
-            await DialogService.ShowAsync<MarkdownViewer>("Markdown preview", new DialogParameters<MarkdownViewer> { { x => x.Markdown, markdown } });
+            await using var stream = file.OpenReadStream(MaxFileSize, cancellationToken);
+            var markdown = await ConverterService.ConvertPdfToMarkdownAsync(stream, cancellationToken);
+
+            await DialogService.ShowAsync<MarkdownViewer>(
+                "Markdown preview",
+                new DialogParameters<MarkdownViewer>
+                {
+                    { viewer => viewer.Markdown, markdown },
+                    { viewer => viewer.FileName, Path.ChangeExtension(file.Name, ".md") }
+                });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -63,5 +116,14 @@
         {
             _busy = false;
         }
+    }
+
+    /// <summary>
+    /// Releases resources used to cancel the current conversion operation.
+    /// </summary>
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
     }
 }

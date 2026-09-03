@@ -1,26 +1,73 @@
-@inject IDialogService DialogService
+@namespace BlazeMd2Pdf.Controls
+
+@using Microsoft.JSInterop
+@using MudBlazor
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">PDF preview</MudText>
     </TitleContent>
     <DialogContent>
-        <MudPaper Class="pa-4">
-            <MudText Typo="Typo.body2">The converted PDF is ready for download.</MudText>
-            <MudText Typo="Typo.caption">@FileName</MudText>
+        <MudPaper Class="pa-2" Style="height:70vh;">
+            <iframe src="@PdfDataUrl"
+                    title="PDF preview"
+                    style="width:100%;height:100%;border:0;"></iframe>
         </MudPaper>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Close</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="DownloadAsync"
+                   StartIcon="@Icons.Material.Filled.Download">
+            Download
+        </MudButton>
+        <MudButton OnClick="Cancel">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     /// <summary>
-    /// Gets or sets the name of the generated PDF file.
+    /// Gets or sets the generated PDF content.
+    /// </summary>
+    [Parameter]
+    public byte[] Content { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the suggested PDF file name.
     /// </summary>
     [Parameter]
     public string FileName { get; set; } = "converted.pdf";
 
-    private void Close() => DialogService.Close();
+    /// <summary>
+    /// Gets the dialog instance supplied by MudBlazor.
+    /// </summary>
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// Provides JavaScript interop for browser download operations.
+    /// </summary>
+    [Inject]
+    private IJSRuntime JsRuntime { get; set; } = default!;
+
+    /// <summary>
+    /// Gets the data URL used by the browser PDF viewer.
+    /// </summary>
+    private string PdfDataUrl => $"data:application/pdf;base64,{Convert.ToBase64String(Content)}";
+
+    /// <summary>
+    /// Downloads the generated PDF file.
+    /// </summary>
+    private async Task DownloadAsync()
+    {
+        await JsRuntime.InvokeVoidAsync("blazeMd2Pdf.downloadFile", FileName, "application/pdf", Content);
+    }
+
+    /// <summary>
+    /// Closes the dialog without returning a result.
+    /// </summary>
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
 }

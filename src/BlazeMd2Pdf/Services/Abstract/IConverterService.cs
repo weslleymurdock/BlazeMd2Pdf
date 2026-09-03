@@ -14,11 +14,11 @@ public interface IConverterService
     Task<string> ReadMarkdownAsync(Stream stream, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Reads PDF content and converts its text to Markdown.
+    /// Reads text from the specified PDF stream.
     /// </summary>
     /// <param name="stream">The stream containing PDF content.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The extracted Markdown content.</returns>
+    /// <returns>The extracted text.</returns>
     Task<string> ReadPdfAsync(Stream stream, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -26,8 +26,8 @@ public interface IConverterService
     /// </summary>
     /// <param name="markdown">The Markdown content.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A stream containing the generated PDF.</returns>
-    Task<Stream> ConvertMarkdownToPdfAsync(string markdown, CancellationToken cancellationToken = default);
+    /// <returns>The generated PDF bytes.</returns>
+    Task<byte[]> ConvertMarkdownToPdfAsync(string markdown, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Converts PDF content to Markdown content.

@@ -1,1 +1,71 @@
 @page "/topdf"
+
+@using BlazeMd2Pdf.Controls
+@using BlazeMd2Pdf.Services.Abstract
+
+@inject IConverterService ConverterService
+@inject IDialogService DialogService
+
+<PageTitle>Markdown to PDF</PageTitle>
+
+<MudStack Class="pa-6" Spacing="4">
+    <MudText Typo="Typo.h4">Markdown to PDF</MudText>
+    <MudText Typo="Typo.body1">Upload a Markdown document to generate a PDF.</MudText>
+    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".md,.markdown" MaximumFileCount="1" Disabled="@_busy">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@_busy">
+                Select Markdown
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+</MudStack>
+
+@code {
+    private bool _busy;
+    private string? _error;
+
+    /// <summary>
+    /// Processes the selected Markdown file and opens the PDF preview dialog.
+    /// </summary>
+    /// <param name="file">The selected browser file.</param>
+    private async Task OnFileSelected(IBrowserFile? file)
+    {
+        _error = null;
+        if (file is null)
+            return;
+
+        var extension = Path.GetExtension(file.Name);
+        if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Only Markdown files are supported.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(10 * 1024 * 1024);
+            var markdown = await ConverterService.ReadMarkdownAsync(stream);
+            await using var pdf = await ConverterService.ConvertMarkdownToPdfAsync(markdown);
+            _ = pdf;
+            await DialogService.ShowAsync<PdfViewer>("PDF preview", new DialogParameters<PdfViewer> { { x => x.FileName, Path.ChangeExtension(file.Name, ".pdf") } });
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

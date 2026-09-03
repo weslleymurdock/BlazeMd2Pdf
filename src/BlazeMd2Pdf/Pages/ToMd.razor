@@ -1,1 +1,67 @@
 @page "/tomarkdown"
+
+@using BlazeMd2Pdf.Controls
+@using BlazeMd2Pdf.Services.Abstract
+
+@inject IConverterService ConverterService
+@inject IDialogService DialogService
+
+<PageTitle>PDF to Markdown</PageTitle>
+
+<MudStack Class="pa-6" Spacing="4">
+    <MudText Typo="Typo.h4">PDF to Markdown</MudText>
+    <MudText Typo="Typo.body1">Upload a PDF document to extract its text as Markdown.</MudText>
+    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf" MaximumFileCount="1" Disabled="@_busy">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@_busy">
+                Select PDF
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+</MudStack>
+
+@code {
+    private bool _busy;
+    private string? _error;
+
+    /// <summary>
+    /// Processes the selected PDF file and opens the Markdown preview dialog.
+    /// </summary>
+    /// <param name="file">The selected browser file.</param>
+    private async Task OnFileSelected(IBrowserFile? file)
+    {
+        _error = null;
+        if (file is null)
+            return;
+
+        if (!string.Equals(Path.GetExtension(file.Name), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Only PDF files are supported.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(50 * 1024 * 1024);
+            var markdown = await ConverterService.ConvertPdfToMarkdownAsync(stream);
+            await DialogService.ShowAsync<MarkdownViewer>("Markdown preview", new DialogParameters<MarkdownViewer> { { x => x.Markdown, markdown } });
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

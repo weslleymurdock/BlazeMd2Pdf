@@ -1,6 +1,12 @@
 window.blazeMd2Pdf = {
-    getInnerHtml: function (element) {
-        return element ? element.innerHTML : "";
+    getInnerHtml: async function (element) {
+        if (!element) {
+            return "";
+        }
+
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        return element.innerHTML || "";
     },
     downloadFile: function (fileName, contentType, content) {
         const blob = new Blob([content], { type: contentType });

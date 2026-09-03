@@ -1,6 +1,7 @@
 using System.Text;
 using BlazeMd2Pdf.Services.Abstract;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
 using UglyToad.PdfPig.Writer;
@@ -92,7 +93,6 @@ public sealed class ConverterService : IConverterService
         var page = builder.AddPage(PageSize.A4);
         const double margin = 50;
         const double lineHeight = 16;
-        const double headingLineHeight = 22;
         var y = page.PageSize.Height - margin;
 
         foreach (var sourceLine in markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
@@ -144,7 +144,7 @@ public sealed class ConverterService : IConverterService
         if (headingLength > 0 && headingLength < trimmed.Length && char.IsWhiteSpace(trimmed[headingLength]))
         {
             var heading = trimmed[(headingLength + 1)..].Trim();
-            return (heading, 16, boldFont, headingLineHeight);
+            return (heading, 16, boldFont, 22);
         }
 
         var text = trimmed.StartsWith("> ", StringComparison.Ordinal)
@@ -158,6 +158,6 @@ public sealed class ConverterService : IConverterService
             text = $"- {text[2..]}";
         }
 
-        return (text, 11, regularFont, lineHeight);
+        return (text, 11, regularFont, 16);
     }
 }

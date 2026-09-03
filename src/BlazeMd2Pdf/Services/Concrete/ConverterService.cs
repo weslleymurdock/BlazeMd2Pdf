@@ -152,9 +152,13 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         var page = builder.AddPage(595d, 842d);
         var layout = new PdfLayout(builder, page, font, fontKey, cancellationToken);
 
-        foreach (var child in document.Body?.Children ?? [])
+        var body = document.Body;
+        if (body is not null)
         {
-            layout.RenderBlock(child);
+            foreach (var child in body.Children)
+            {
+                layout.RenderBlock(child);
+            }
         }
 
         return builder.Build();

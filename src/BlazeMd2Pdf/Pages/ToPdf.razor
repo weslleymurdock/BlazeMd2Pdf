@@ -16,7 +16,36 @@
 
 <MudStack Class="pa-6" Spacing="4">
     <MudText Typo="Typo.h4">Markdown to PDF</MudText>
-    <MudText Typo="Typo.body1">Select a Markdown file to generate a PDF.</MudText>
+    <MudText Typo="Typo.body1">Select a Markdown file, configure the document appearance, and preview the generated PDF.</MudText>
+
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6">PDF appearance</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">The defaults are designed for a clean, readable A4 document.</MudText>
+
+        <MudStack Spacing="3">
+            <MudSelect T="string" Label="Font" @bind-Value="_options.FontKey" Variant="Variant.Outlined">
+                @foreach (var font in ConverterService.AvailableFonts)
+                {
+                    <MudSelectItem T="string" Value="@font.Key">@font.DisplayName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudStack Row="true" Spacing="3">
+                <MudNumericField T="double" Label="Body font size (pt)" @bind-Value="_options.FontSize" Min="8" Max="18" Step="0.5" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Line spacing" @bind-Value="_options.LineSpacing" Min="1" Max="2.5" Step="0.05" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudStack Row="true" Spacing="3">
+                <MudNumericField T="double" Label="Page margin (mm)" @bind-Value="_options.PageMargin" Min="10" Max="40" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Paragraph spacing (pt)" @bind-Value="_options.ParagraphSpacing" Min="0" Max="24" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Heading spacing (pt)" @bind-Value="_options.HeadingSpacing" Min="0" Max="30" Step="1" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudSwitch T="bool" @bind-Value="_options.KeepHeadingWithNext" Color="Color.Primary">
+                Keep headings with the following content when possible
+            </MudSwitch>
+        </MudStack>
+    </MudPaper>
 
     <MudFileUpload T="IBrowserFile"
                    Accept=".md, .markdown"
@@ -34,26 +63,23 @@
         </CustomContent>
     </MudFileUpload>
 
-    @if (_fontSelectionRequired)
+    @if (_selectedFile is not null)
     {
-        <MudAlert Severity="Severity.Warning">
-            The selected font cannot represent a character in this document. Choose another document font and try again.
-        </MudAlert>
-
-        <MudSelect T="string" Label="Document font" @bind-Value="_selectedFont">
-            @foreach (var font in ConverterService.AvailableFonts)
-            {
-                <MudSelectItem T="string" Value="@font.Key">@font.DisplayName</MudSelectItem>
-            }
-        </MudSelect>
-
+        <MudText Typo="Typo.body2">Selected: @_selectedFile.Name</MudText>
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    Disabled="@_busy"
                    OnClick="ConvertSelectedFileAsync"
                    StartIcon="@Icons.Material.Filled.PictureAsPdf">
-            Try selected font
+            Generate PDF
         </MudButton>
+    }
+
+    @if (_fontSelectionRequired)
+    {
+        <MudAlert Severity="Severity.Warning">
+            The selected font cannot represent a character in this document. Choose another font and generate the PDF again.
+        </MudAlert>
     }
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -89,9 +115,9 @@
     private bool _fontSelectionRequired;
 
     /// <summary>
-    /// Stores the selected document font.
+    /// Stores the selected PDF presentation options.
     /// </summary>
-    private string _selectedFont = "liberation-sans";
+    private PdfConversionOptions _options = new();
 
     /// <summary>
     /// Stores the currently selected browser file.
@@ -104,10 +130,10 @@
     private CancellationTokenSource _cancellationTokenSource = new();
 
     /// <summary>
-    /// Processes the selected Markdown file.
+    /// Processes the selected Markdown file without starting conversion automatically.
     /// </summary>
     /// <param name="file">The selected browser file.</param>
-    private async Task OnFileSelected(IBrowserFile? file)
+    private Task OnFileSelected(IBrowserFile? file)
     {
         _error = null;
         _fontSelectionRequired = false;
@@ -115,7 +141,7 @@
 
         if (file is null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var extension = Path.GetExtension(file.Name);
@@ -123,15 +149,15 @@
             !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
         {
             _error = "Only Markdown files are supported.";
-            return;
+            return Task.CompletedTask;
         }
 
         _selectedFile = file;
-        await ConvertSelectedFileAsync();
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Converts the selected Markdown file using the currently selected document font.
+    /// Converts the selected Markdown file using the configured PDF options.
     /// </summary>
     private async Task ConvertSelectedFileAsync()
     {
@@ -148,14 +174,14 @@
 
         _busy = true;
         _error = null;
+        _fontSelectionRequired = false;
 
         try
         {
             await using var stream = selectedFile.OpenReadStream(MaxFileSize, cancellationToken);
             var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
-            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, _selectedFont, cancellationToken);
+            var pdfBytes = await ConverterService.ConvertMarkdownToPdfAsync(markdown, _options, cancellationToken);
 
-            _fontSelectionRequired = false;
             await DialogService.ShowAsync<PdfViewer>(
                 "PDF preview",
                 new DialogParameters<PdfViewer>

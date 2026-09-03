@@ -1,0 +1,213 @@
+@namespace BlazeMd2Pdf.Pages
+
+@using BlazeMd2Pdf.Controls
+@using BlazeMd2Pdf.Services.Abstract
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+@implements IDisposable
+
+@inject IConverterService ConverterService
+
+<MudStack Class="pa-6" Spacing="4">
+    <MudText Typo="Typo.h4">@Title</MudText>
+    <MudText Typo="Typo.body1">Render Markdown with MudMarkdown and export the actual browser-rendered document as @Format.ToString().ToUpperInvariant().</MudText>
+
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6">Document layout</MudText>
+        <MudStack Spacing="3" Class="mt-3">
+            <MudStack Row="true" Spacing="3">
+                <MudSelect T="string" Label="Font family" @bind-Value="_options.FontFamily" Variant="Variant.Outlined">
+                    <MudSelectItem Value="Arial, Helvetica, sans-serif">Arial</MudSelectItem>
+                    <MudSelectItem Value="Georgia, serif">Georgia</MudSelectItem>
+                    <MudSelectItem Value="Verdana, sans-serif">Verdana</MudSelectItem>
+                    <MudSelectItem Value="Roboto, sans-serif">Roboto</MudSelectItem>
+                    <MudSelectItem Value="monospace">Monospace</MudSelectItem>
+                </MudSelect>
+                <MudNumericField T="double" Label="Font size (px)" @bind-Value="_options.FontSize" Min="8" Max="32" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Line height" @bind-Value="_options.LineHeight" Min="1" Max="3" Step="0.05" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudSelect T="DocumentTextAlignment" Label="Text alignment" @bind-Value="_options.Alignment" Variant="Variant.Outlined">
+                <MudSelectItem Value="DocumentTextAlignment.Left">Left</MudSelectItem>
+                <MudSelectItem Value="DocumentTextAlignment.Center">Center</MudSelectItem>
+                <MudSelectItem Value="DocumentTextAlignment.Right">Right</MudSelectItem>
+                <MudSelectItem Value="DocumentTextAlignment.Justify">Justify</MudSelectItem>
+            </MudSelect>
+
+            <MudText Typo="Typo.subtitle2">Page margins (mm)</MudText>
+            <MudStack Row="true" Spacing="3">
+                <MudNumericField T="double" Label="Top" @bind-Value="_options.MarginTop" Min="0" Max="60" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Right" @bind-Value="_options.MarginRight" Min="0" Max="60" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Bottom" @bind-Value="_options.MarginBottom" Min="0" Max="60" Step="1" Variant="Variant.Outlined" />
+                <MudNumericField T="double" Label="Left" @bind-Value="_options.MarginLeft" Min="0" Max="60" Step="1" Variant="Variant.Outlined" />
+            </MudStack>
+
+            @if (Format == MarkdownExportFormat.Pdf)
+            {
+                <MudStack Row="true" Spacing="3">
+                    <MudSelect T="string" Label="Page format" @bind-Value="_options.PageFormat" Variant="Variant.Outlined">
+                        <MudSelectItem Value="a4">A4</MudSelectItem>
+                        <MudSelectItem Value="letter">Letter</MudSelectItem>
+                        <MudSelectItem Value="legal">Legal</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect T="string" Label="Orientation" @bind-Value="_options.Orientation" Variant="Variant.Outlined">
+                        <MudSelectItem Value="portrait">Portrait</MudSelectItem>
+                        <MudSelectItem Value="landscape">Landscape</MudSelectItem>
+                    </MudSelect>
+                    <MudNumericField T="double" Label="Render scale" @bind-Value="_options.Scale" Min="1" Max="4" Step="0.5" Variant="Variant.Outlined" />
+                </MudStack>
+            }
+            else
+            {
+                <MudStack Row="true" Spacing="3">
+                    <MudNumericField T="double" Label="Render scale" @bind-Value="_options.Scale" Min="1" Max="4" Step="0.5" Variant="Variant.Outlined" />
+                    <MudNumericField T="double" Label="Image quality" @bind-Value="_options.ImageQuality" Min="0.1" Max="1" Step="0.05" Variant="Variant.Outlined" />
+                </MudStack>
+            }
+        </MudStack>
+    </MudPaper>
+
+    <MudFileUpload T="IBrowserFile"
+                   Accept=".md, .markdown"
+                   MaximumFileCount="1"
+                   MaxFileSize="@MaxFileSize"
+                   Disabled="@_busy"
+                   FilesChanged="OnFileSelected">
+        <CustomContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@context.OpenFilePickerAsync" StartIcon="@Icons.Material.Filled.UploadFile">
+                Select Markdown
+            </MudButton>
+        </CustomContent>
+    </MudFileUpload>
+
+    <MarkdownExportSurface @ref="_surface" Options="_options" />
+
+    @if (_selectedFile is not null)
+    {
+        <MudText Typo="Typo.body2">Selected: @_selectedFile.Name</MudText>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@_busy"
+                   OnClick="ExportAsync"
+                   StartIcon="@ExportIcon">
+            Export @Format.ToString().ToUpperInvariant()
+        </MudButton>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+</MudStack>
+
+@code {
+    /// <summary>Gets or sets the page title.</summary>
+    [Parameter]
+    public string Title { get; set; } = "Markdown export";
+
+    /// <summary>Gets or sets the requested export format.</summary>
+    [Parameter]
+    public MarkdownExportFormat Format { get; set; }
+
+    /// <summary>Gets the maximum accepted Markdown size in bytes.</summary>
+    private const long MaxFileSize = 10 * 1024 * 1024;
+
+    private readonly MarkdownExportOptions _options = new();
+    private IBrowserFile? _selectedFile;
+    private MarkdownExportSurface? _surface;
+    private CancellationTokenSource _cancellationTokenSource = new();
+    private bool _busy;
+    private string? _error;
+
+    private string ExportIcon => Format switch
+    {
+        MarkdownExportFormat.Pdf => Icons.Material.Filled.PictureAsPdf,
+        MarkdownExportFormat.Html => Icons.Material.Filled.Code,
+        MarkdownExportFormat.Png => Icons.Material.Filled.Image,
+        MarkdownExportFormat.Jpeg => Icons.Material.Filled.Image,
+        _ => Icons.Material.Filled.Download
+    };
+
+    private Task OnFileSelected(IBrowserFile? file)
+    {
+        _error = null;
+        _selectedFile = null;
+
+        if (file is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var extension = Path.GetExtension(file.Name);
+        if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Only Markdown files are supported.";
+            return Task.CompletedTask;
+        }
+
+        _selectedFile = file;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExportAsync()
+    {
+        var file = _selectedFile;
+        var surface = _surface;
+        if (file is null || surface is null)
+        {
+            _error = "Select a Markdown file before exporting.";
+            return;
+        }
+
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxFileSize, cancellationToken);
+            var markdown = await ConverterService.ReadMarkdownAsync(stream, cancellationToken);
+            await surface.RenderAsync(markdown, cancellationToken);
+
+            var extension = Format switch
+            {
+                MarkdownExportFormat.Pdf => ".pdf",
+                MarkdownExportFormat.Html => ".html",
+                MarkdownExportFormat.Png => ".png",
+                MarkdownExportFormat.Jpeg => ".jpeg",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+
+            var outputName = Path.ChangeExtension(file.Name, extension);
+            await surface.ExportAsync(Format, outputName, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Releases the cancellation source used by the page.</summary>
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+    }
+}

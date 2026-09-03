@@ -1,0 +1,125 @@
+@namespace BlazeMd2Pdf.Controls
+
+@using BlazeMd2Pdf.Services.Abstract
+@using MudBlazor
+
+@implements IDisposable
+
+<div class="markdown-export-preview-host">
+    <div @ref="_content" class="markdown-export-document" style="@BuildDocumentStyle()">
+        <MudMarkdown Value="@_markdown" />
+    </div>
+</div>
+
+@code {
+    [Inject]
+    private IMarkdownExportService ExportService { get; set; } = default!;
+
+    /// <summary>Gets or sets the Markdown source rendered by the surface.</summary>
+    [Parameter]
+    public string Markdown { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the presentation options used for rendering and export.</summary>
+    [Parameter]
+    public MarkdownExportOptions Options { get; set; } = new();
+
+    private ElementReference _content;
+    private string _markdown = string.Empty;
+    private TaskCompletionSource<bool>? _renderCompletion;
+    private bool _disposed;
+
+    /// <summary>Loads Markdown into the MudMarkdown renderer and waits for the browser DOM to settle.</summary>
+    /// <param name="markdown">The Markdown source.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    public async Task RenderAsync(string markdown, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(markdown);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _renderCompletion?.TrySetCanceled();
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _renderCompletion = completion;
+        _markdown = markdown;
+
+        using var registration = cancellationToken.Register(static state =>
+        {
+            ((TaskCompletionSource<bool>)state!).TrySetCanceled();
+        }, completion);
+
+        await InvokeAsync(StateHasChanged);
+        await completion.Task;
+    }
+
+    /// <summary>Exports the currently rendered Markdown document.</summary>
+    /// <param name="format">The requested output format.</param>
+    /// <param name="fileName">The output file name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    public Task ExportAsync(
+        MarkdownExportFormat format,
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return ExportService.ExportAsync(_content, format, fileName, Options, cancellationToken);
+    }
+
+    private string BuildDocumentStyle()
+    {
+        var width = Options.Orientation.Equals("landscape", StringComparison.OrdinalIgnoreCase)
+            ? 297 - Options.MarginLeft - Options.MarginRight
+            : 210 - Options.MarginLeft - Options.MarginRight;
+
+        return $"width:{Math.Max(width, 1):0.###}mm;" +
+               $"padding:0;" +
+               $"font-family:{Options.FontFamily};" +
+               $"font-size:{Math.Max(Options.FontSize, 1):0.###}px;" +
+               $"line-height:{Math.Max(Options.LineHeight, 1):0.###};" +
+               $"text-align:{GetAlignmentCss()};";
+    }
+
+    private string GetAlignmentCss() => Options.Alignment switch
+    {
+        DocumentTextAlignment.Center => "center",
+        DocumentTextAlignment.Right => "right",
+        DocumentTextAlignment.Justify => "justify",
+        _ => "left"
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (Options is null)
+        {
+            Options = new MarkdownExportOptions();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var completion = _renderCompletion;
+        if (completion is null || _disposed)
+        {
+            return;
+        }
+
+        await Task.Yield();
+        if (ReferenceEquals(_renderCompletion, completion))
+        {
+            _renderCompletion = null;
+            completion.TrySetResult(true);
+        }
+    }
+
+    /// <summary>Releases pending rendering state.</summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _renderCompletion?.TrySetCanceled();
+        _renderCompletion = null;
+    }
+}

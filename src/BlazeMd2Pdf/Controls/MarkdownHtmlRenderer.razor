@@ -3,6 +3,8 @@
 @using Microsoft.JSInterop
 @using MudBlazor
 
+@implements IDisposable
+
 <div @ref="_host" class="blaze-markdown-html-source" style="position:absolute;left:-100000px;top:0;width:800px;visibility:hidden;pointer-events:none;">
     <MudMarkdown Value="@_markdown" />
 </div>

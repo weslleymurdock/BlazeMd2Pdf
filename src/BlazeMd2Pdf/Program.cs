@@ -14,5 +14,6 @@ builder.Services.AddMudServices();
 builder.Services.AddMudMarkdownServices();
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<IConverterService, ConverterService>();
+builder.Services.AddScoped<IMarkdownExportService, MarkdownExportService>();
 
 await builder.Build().RunAsync();

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Components;
+
 namespace BlazeMd2Pdf.Services.Abstract;
 
 /// <summary>Defines browser-based export operations for rendered Markdown documents.</summary>
@@ -10,7 +12,7 @@ public interface IMarkdownExportService
     /// <param name="options">The export presentation options.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     Task ExportAsync(
-        object element,
+        ElementReference element,
         MarkdownExportFormat format,
         string fileName,
         MarkdownExportOptions options,

@@ -650,13 +650,15 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         /// <returns>The line height.</returns>
         private double LineHeight(double fontSize) => Math.Max(fontSize * _options.LineSpacing, fontSize * 1.15d);
 
-        /// <summary>Tokenizes text while preserving explicit line breaks.</summary>
+        /// <summary>Tokenizes text into words, whitespace runs, and explicit line breaks.</summary>
         /// <param name="text">The source text.</param>
-        /// <returns>The tokens.</returns>
+        /// <returns>The tokens used by the line wrapper.</returns>
         private static IEnumerable<string> Tokenize(string text)
         {
             var normalized = text.Replace("\r", string.Empty, StringComparison.Ordinal);
             var buffer = new StringBuilder();
+            var whitespace = false;
+
             foreach (var character in normalized)
             {
                 if (character == '\n')
@@ -666,9 +668,19 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                         yield return buffer.ToString();
                         buffer.Clear();
                     }
+                    whitespace = false;
                     yield return "\n";
+                    continue;
                 }
-                else if (char.IsWhiteSpace(character))
+
+                var isWhitespace = char.IsWhiteSpace(character);
+                if (buffer.Length > 0 && isWhitespace != whitespace)
+                {
+                    yield return buffer.ToString();
+                    buffer.Clear();
+                }
+
+                if (isWhitespace)
                 {
                     buffer.Append(' ');
                 }
@@ -676,7 +688,9 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 {
                     buffer.Append(character);
                 }
+                whitespace = isWhitespace;
             }
+
             if (buffer.Length > 0)
             {
                 yield return buffer.ToString();

@@ -4,7 +4,7 @@ using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
 using UglyToad.PdfPig.Writer;
-using PdfPig.Core;
+using UglyToad.PdfPig.Core;
 
 namespace BlazeMd2Pdf.Services.Concrete;
 

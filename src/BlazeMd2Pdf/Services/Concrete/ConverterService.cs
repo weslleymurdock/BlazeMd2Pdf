@@ -47,11 +47,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
     public async Task<string> ReadPdfAsync(Stream stream, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        cancellationToken.ThrowIfCancellationRequested();
-        await using var pdfBytes = new MemoryStream();
-        await stream.CopyToAsync(pdfBytes, cancellationToken);
-        pdfBytes.Position = 0;
-        return ExtractPdfText(pdfBytes, new MarkdownConversionOptions(), cancellationToken);
+        return await ConvertPdfToMarkdownAsync(stream, new MarkdownConversionOptions(), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -115,10 +111,8 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 output.AppendLine("---");
                 output.AppendLine();
             }
-
             AppendPageAsMarkdown(output, pages[pageIndex], options);
         }
-
         return output.ToString().Trim();
     }
 
@@ -131,9 +125,16 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         var lines = text.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
         if (options.PreserveLineBreaks)
         {
-            var cleaned = lines.Select(line => line.TrimEnd()).ToArray();
-            output.Append(string.Join('\n', cleaned));
-            output.AppendLine();
+            foreach (var line in lines)
+            {
+                var value = line.TrimEnd();
+                if (value.Length > 0)
+                {
+                    output.Append(value);
+                    output.Append("  ");
+                }
+                output.AppendLine();
+            }
             return;
         }
 
@@ -164,11 +165,12 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         {
             return;
         }
-
         output.Append(string.Join(' ', paragraph.Select(NormalizeWhitespace)));
-        output.Append('\n');
-        output.Append(' ', 0);
-        output.AppendLine(new string('\n', spacing));
+        output.AppendLine();
+        for (var index = 0; index < spacing; index++)
+        {
+            output.AppendLine();
+        }
     }
 
     /// <summary>Builds a styled PDF using semantic Markdown HTML and a deterministic page layout.</summary>
@@ -207,7 +209,9 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         private readonly PdfDocumentBuilder.AddedFont _font;
         private readonly PdfConversionOptions _options;
         private readonly CancellationToken _cancellationToken;
-        private readonly double _margin;
+        private readonly double _horizontalMargin;
+        private readonly double _topMargin;
+        private readonly double _bottomMargin;
         private readonly double _contentWidth;
         private PdfPageBuilder _page;
         private double _y;
@@ -225,9 +229,11 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             _font = font;
             _options = options;
             _cancellationToken = cancellationToken;
-            _margin = options.PageMargin * 72d / 25.4d;
-            _contentWidth = PageWidth - (_margin * 2d);
-            _y = PageHeight - _margin;
+            _horizontalMargin = MmToPoints(options.HorizontalMargin);
+            _topMargin = MmToPoints(options.TopMargin);
+            _bottomMargin = MmToPoints(options.BottomMargin);
+            _contentWidth = Math.Max(1d, PageWidth - (_horizontalMargin * 2d));
+            _y = PageHeight - _topMargin;
         }
 
         /// <summary>Renders one block-level HTML element.</summary>
@@ -237,13 +243,13 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             _cancellationToken.ThrowIfCancellationRequested();
             switch (element.LocalName.ToLowerInvariant())
             {
-                case "h1": RenderParagraph(element, 24, true, 1.05, _options.HeadingSpacing, _options.HeadingSpacing); break;
-                case "h2": RenderParagraph(element, 20, true, 1.1, _options.HeadingSpacing, _options.HeadingSpacing * 0.8); break;
-                case "h3": RenderParagraph(element, 17, true, 1.15, _options.HeadingSpacing * 0.8, _options.HeadingSpacing * 0.7); break;
-                case "h4": RenderParagraph(element, 15, true, 1.2, _options.HeadingSpacing * 0.7, _options.HeadingSpacing * 0.6); break;
-                case "h5": RenderParagraph(element, 13, true, 1.25, _options.HeadingSpacing * 0.6, _options.HeadingSpacing * 0.5); break;
-                case "h6": RenderParagraph(element, 12, true, 1.3, _options.HeadingSpacing * 0.5, _options.HeadingSpacing * 0.5); break;
-                case "p": RenderParagraph(element, _options.FontSize, false, _options.LineSpacing, 0, _options.ParagraphSpacing); break;
+                case "h1": RenderParagraph(element, 24, true, 1.05, _options.HeadingSpacing, _options.HeadingSpacing, true); break;
+                case "h2": RenderParagraph(element, 20, true, 1.1, _options.HeadingSpacing, _options.HeadingSpacing * 0.8, true); break;
+                case "h3": RenderParagraph(element, 17, true, 1.15, _options.HeadingSpacing * 0.8, _options.HeadingSpacing * 0.7, true); break;
+                case "h4": RenderParagraph(element, 15, true, 1.2, _options.HeadingSpacing * 0.7, _options.HeadingSpacing * 0.6, true); break;
+                case "h5": RenderParagraph(element, 13, true, 1.25, _options.HeadingSpacing * 0.6, _options.HeadingSpacing * 0.5, true); break;
+                case "h6": RenderParagraph(element, 12, true, 1.3, _options.HeadingSpacing * 0.5, _options.HeadingSpacing * 0.5, true); break;
+                case "p": RenderParagraph(element, _options.FontSize, false, _options.LineSpacing, 0, _options.ParagraphSpacing, false); break;
                 case "blockquote": RenderQuote(element); break;
                 case "ul": RenderList(element, false, 0); break;
                 case "ol": RenderList(element, true, 0); break;
@@ -266,7 +272,8 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         /// <param name="lineSpacing">The line-height multiplier.</param>
         /// <param name="before">The space before the block.</param>
         /// <param name="after">The space after the block.</param>
-        private void RenderParagraph(IElement element, double fontSize, bool bold, double lineSpacing, double before, double after)
+        /// <param name="heading">Whether the block is a heading.</param>
+        private void RenderParagraph(IElement element, double fontSize, bool bold, double lineSpacing, double before, double after, bool heading)
         {
             var runs = new List<PdfTextRun>();
             AppendInlineRuns(element, runs, fontSize, bold, false, false, false);
@@ -277,12 +284,13 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             }
 
             var lineHeight = Math.Max(fontSize * lineSpacing, fontSize * 1.15d);
-            EnsureSpace(before + (lineHeight * Math.Min(lines.Count, 2)) + after);
+            var minimum = heading && _options.KeepHeadingWithNext ? lineHeight * 2d : lineHeight;
+            EnsureSpace(before + minimum + after);
             _y -= before;
-            foreach (var line in lines)
+            for (var index = 0; index < lines.Count; index++)
             {
                 EnsureSpace(lineHeight + after);
-                DrawLine(line, _margin, _contentWidth);
+                DrawLine(lines[index], _horizontalMargin, _contentWidth, _options.Alignment, index < lines.Count - 1);
                 _y -= lineHeight;
             }
             _y -= after;
@@ -296,15 +304,15 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             AppendInlineRuns(element, runs, _options.FontSize, false, true, false, false);
             const double indent = 18d;
             var lines = WrapRuns(runs, _contentWidth - indent);
-            var lineHeight = Math.Max(_options.FontSize * _options.LineSpacing, 13d);
+            var lineHeight = LineHeight(_options.FontSize);
             EnsureSpace((lines.Count * lineHeight) + _options.ParagraphSpacing + 8d);
             var startY = _y;
-            foreach (var line in lines)
+            for (var index = 0; index < lines.Count; index++)
             {
-                DrawLine(line, _margin + indent, _contentWidth - indent);
+                DrawLine(lines[index], _horizontalMargin + indent, _contentWidth - indent, DocumentTextAlignment.Left, false);
                 _y -= lineHeight;
             }
-            _page.DrawLine(new PdfPoint(_margin + 5d, startY + 3d), new PdfPoint(_margin + 5d, _y + lineHeight), 2);
+            _page.DrawLine(new PdfPoint(_horizontalMargin + 5d, startY + 3d), new PdfPoint(_horizontalMargin + 5d, _y + lineHeight), 2);
             _y -= 8d;
         }
 
@@ -322,10 +330,11 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 var prefix = ordered ? $"{index.ToString(CultureInfo.InvariantCulture)}. " : "• ";
                 var runs = new List<PdfTextRun> { new(prefix, _options.FontSize, false, false, false, false) };
                 AppendInlineRuns(item, runs, _options.FontSize, false, false, false, false);
-                foreach (var line in WrapRuns(runs, _contentWidth - indent))
+                var lines = WrapRuns(runs, _contentWidth - indent);
+                for (var lineIndex = 0; lineIndex < lines.Count; lineIndex++)
                 {
                     EnsureSpace(LineHeight(_options.FontSize));
-                    DrawLine(line, _margin + indent, _contentWidth - indent);
+                    DrawLine(lines[lineIndex], _horizontalMargin + indent, _contentWidth - indent, _options.Alignment, lineIndex < lines.Count - 1);
                     _y -= LineHeight(_options.FontSize);
                 }
                 index++;
@@ -342,7 +351,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         private void RenderCodeBlock(IElement element)
         {
             var text = element.QuerySelector("code")?.TextContent ?? element.TextContent;
-            var lineHeight = 12d;
+            const double lineHeight = 12d;
             foreach (var sourceLine in text.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n'))
             {
                 var run = new PdfTextRun(sourceLine, 9, false, false, true, false);
@@ -350,8 +359,8 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 foreach (var line in lines)
                 {
                     EnsureSpace(lineHeight + 6d);
-                    _page.DrawRectangle(new PdfPoint(_margin - 3d, _y - 3d), _contentWidth + 6d, lineHeight + 5d, 0.5d);
-                    DrawLine(line, _margin + 5d, _contentWidth - 10d);
+                    _page.DrawRectangle(new PdfPoint(_horizontalMargin - 3d, _y - 3d), _contentWidth + 6d, lineHeight + 5d, 0.5d);
+                    DrawLine(line, _horizontalMargin + 5d, _contentWidth - 10d, DocumentTextAlignment.Left, false);
                     _y -= lineHeight;
                 }
             }
@@ -371,23 +380,20 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 return;
             }
 
-            var columnCount = rows.Max(row => row.Length);
-            var separator = " | ";
             foreach (var row in rows)
             {
-                var text = string.Join(separator, row.Select(value => value));
+                var text = string.Join(" | ", row);
                 var runs = new List<PdfTextRun> { new(text, _options.FontSize - 1, row == rows[0], false, false, false) };
                 var lines = WrapRuns(runs, _contentWidth - 8d);
-                foreach (var line in lines)
+                for (var lineIndex = 0; lineIndex < lines.Count; lineIndex++)
                 {
                     EnsureSpace(LineHeight(_options.FontSize - 1) + 2d);
-                    DrawLine(line, _margin + 4d, _contentWidth - 8d);
+                    DrawLine(lines[lineIndex], _horizontalMargin + 4d, _contentWidth - 8d, _options.Alignment, lineIndex < lines.Count - 1);
                     _y -= LineHeight(_options.FontSize - 1);
                 }
-                _page.DrawLine(new PdfPoint(_margin, _y + 3d), new PdfPoint(_margin + _contentWidth, _y + 3d), 0.5d);
+                _page.DrawLine(new PdfPoint(_horizontalMargin, _y + 3d), new PdfPoint(_horizontalMargin + _contentWidth, _y + 3d), 0.5d);
                 _y -= 3d;
             }
-            _ = columnCount;
             _y -= _options.ParagraphSpacing;
         }
 
@@ -395,7 +401,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
         private void RenderRule()
         {
             EnsureSpace(16d);
-            _page.DrawLine(new PdfPoint(_margin, _y), new PdfPoint(_margin + _contentWidth, _y), 0.7d);
+            _page.DrawLine(new PdfPoint(_horizontalMargin, _y), new PdfPoint(_horizontalMargin + _contentWidth, _y), 0.7d);
             _y -= 16d;
         }
 
@@ -434,9 +440,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                     runs.Add(new PdfTextRun("\n", fontSize, bold, italic, code, link));
                     continue;
                 }
-                AppendInlineRuns(
-                    child,
-                    runs,
+                AppendInlineRuns(child, runs,
                     tag switch
                     {
                         "small" => Math.Max(8d, fontSize - 2d),
@@ -466,6 +470,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                     _cancellationToken.ThrowIfCancellationRequested();
                     if (token == "\n")
                     {
+                        TrimLineEnd(current);
                         AddLine(result, current);
                         current = [];
                         width = 0;
@@ -474,6 +479,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                     var tokenWidth = MeasureWidth(token, run.FontSize);
                     if (tokenWidth <= maxWidth && width > 0 && width + tokenWidth > maxWidth)
                     {
+                        TrimLineEnd(current);
                         AddLine(result, current);
                         current = [];
                         width = 0;
@@ -484,12 +490,12 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                         width += tokenWidth;
                         continue;
                     }
-
                     foreach (var part in SplitLongToken(token, run.FontSize, maxWidth))
                     {
                         var partWidth = MeasureWidth(part, run.FontSize);
                         if (width > 0 && width + partWidth > maxWidth)
                         {
+                            TrimLineEnd(current);
                             AddLine(result, current);
                             current = [];
                             width = 0;
@@ -499,6 +505,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                     }
                 }
             }
+            TrimLineEnd(current);
             AddLine(result, current);
             return result;
         }
@@ -513,8 +520,8 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             var buffer = new StringBuilder();
             foreach (var character in token)
             {
-                var candidate = buffer.Append(character).ToString();
-                if (buffer.Length > 1 && MeasureWidth(candidate, fontSize) > maxWidth)
+                buffer.Append(character);
+                if (buffer.Length > 1 && MeasureWidth(buffer.ToString(), fontSize) > maxWidth)
                 {
                     buffer.Length--;
                     yield return buffer.ToString();
@@ -525,6 +532,16 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             if (buffer.Length > 0)
             {
                 yield return buffer.ToString();
+            }
+        }
+
+        /// <summary>Removes trailing whitespace from a line before alignment is calculated.</summary>
+        /// <param name="line">The line to normalize.</param>
+        private static void TrimLineEnd(List<PdfTextRun> line)
+        {
+            while (line.Count > 0 && string.IsNullOrWhiteSpace(line[^1].Text))
+            {
+                line.RemoveAt(line.Count - 1);
             }
         }
 
@@ -539,13 +556,26 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             }
         }
 
-        /// <summary>Draws one already-wrapped line.</summary>
+        /// <summary>Draws one already-wrapped line using the requested alignment.</summary>
         /// <param name="line">The line runs.</param>
-        /// <param name="left">The left coordinate.</param>
-        /// <param name="maxWidth">The maximum width.</param>
-        private void DrawLine(List<PdfTextRun> line, double left, double maxWidth)
+        /// <param name="left">The left content coordinate.</param>
+        /// <param name="maxWidth">The content width.</param>
+        /// <param name="alignment">The requested alignment.</param>
+        /// <param name="justify">Whether extra width should be distributed across spaces.</param>
+        private void DrawLine(List<PdfTextRun> line, double left, double maxWidth, DocumentTextAlignment alignment, bool justify)
         {
-            var x = left;
+            var naturalWidth = line.Sum(run => MeasureWidth(run.Text, run.FontSize));
+            var extra = Math.Max(0d, maxWidth - naturalWidth);
+            var spaceCount = line.Count(run => IsWhitespaceRun(run.Text));
+            var useJustification = alignment == DocumentTextAlignment.Justify && justify && spaceCount > 0;
+            var spaceExtra = useJustification ? extra / spaceCount : 0d;
+            var x = alignment switch
+            {
+                DocumentTextAlignment.Center => left + (extra / 2d),
+                DocumentTextAlignment.Right => left + extra,
+                _ => left
+            };
+
             foreach (var run in line)
             {
                 var width = MeasureWidth(run.Text, run.FontSize);
@@ -555,6 +585,10 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 }
                 DrawRun(run, x, _y);
                 x += width;
+                if (useJustification && IsWhitespaceRun(run.Text))
+                {
+                    x += spaceExtra;
+                }
             }
         }
 
@@ -599,16 +633,16 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
             ? 0d
             : _page.MeasureText(text, fontSize, new PdfPoint(0, 0), _font).Sum(letter => letter.Width);
 
-        /// <summary>Ensures the requested vertical space is available.</summary>
+        /// <summary>Ensures the requested vertical space is available inside the top and bottom margins.</summary>
         /// <param name="requiredHeight">The required height.</param>
         private void EnsureSpace(double requiredHeight)
         {
-            if (_y - requiredHeight >= _margin)
+            if (_y - requiredHeight >= _bottomMargin)
             {
                 return;
             }
             _page = _builder.AddPage(PageWidth, PageHeight);
-            _y = PageHeight - _margin;
+            _y = PageHeight - _topMargin;
         }
 
         /// <summary>Calculates the line height.</summary>
@@ -648,6 +682,16 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
                 yield return buffer.ToString();
             }
         }
+
+        /// <summary>Determines whether a run consists only of whitespace.</summary>
+        /// <param name="text">The run text.</param>
+        /// <returns><see langword="true"/> when the run contains only whitespace.</returns>
+        private static bool IsWhitespaceRun(string text) => text.Length > 0 && text.All(char.IsWhiteSpace);
+
+        /// <summary>Converts millimetres to PDF points.</summary>
+        /// <param name="millimetres">The value in millimetres.</param>
+        /// <returns>The value in points.</returns>
+        private static double MmToPoints(double millimetres) => millimetres * 72d / 25.4d;
     }
 
     /// <summary>Normalizes extracted or HTML whitespace.</summary>
@@ -661,7 +705,9 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
     {
         if (options.FontSize is < 8 or > 18) throw new ArgumentOutOfRangeException(nameof(options.FontSize));
         if (options.LineSpacing is < 1 or > 2.5) throw new ArgumentOutOfRangeException(nameof(options.LineSpacing));
-        if (options.PageMargin is < 10 or > 40) throw new ArgumentOutOfRangeException(nameof(options.PageMargin));
+        if (options.HorizontalMargin is < 5 or > 60) throw new ArgumentOutOfRangeException(nameof(options.HorizontalMargin));
+        if (options.TopMargin is < 5 or > 60) throw new ArgumentOutOfRangeException(nameof(options.TopMargin));
+        if (options.BottomMargin is < 5 or > 60) throw new ArgumentOutOfRangeException(nameof(options.BottomMargin));
         if (options.ParagraphSpacing is < 0 or > 24) throw new ArgumentOutOfRangeException(nameof(options.ParagraphSpacing));
         if (options.HeadingSpacing is < 0 or > 30) throw new ArgumentOutOfRangeException(nameof(options.HeadingSpacing));
     }

@@ -4,7 +4,7 @@
 @using MudBlazor
 
 <div @ref="_host" class="blaze-markdown-html-source" style="position:absolute;left:-100000px;top:0;width:800px;visibility:hidden;pointer-events:none;">
-    <MudMarkdown Value="@Markdown" />
+    <MudMarkdown Value="@_markdown" />
 </div>
 
 @code {
@@ -12,67 +12,82 @@
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
 
-    /// <summary>References the host element containing the rendered MudMarkdown component.</summary>
+    /// <summary>References the host element containing the MudMarkdown component.</summary>
     private ElementReference _host;
 
     /// <summary>Stores the Markdown value rendered by MudMarkdown.</summary>
     private string _markdown = string.Empty;
 
-    /// <summary>Stores the pending HTML conversion request.</summary>
+    /// <summary>Stores the pending HTML capture operation.</summary>
     private TaskCompletionSource<string>? _pendingRequest;
 
-    /// <summary>Gets or sets the Markdown source rendered by the component.</summary>
-    [Parameter]
-    public string Markdown
-    {
-        get => _markdown;
-        set
-        {
-            if (string.Equals(_markdown, value, StringComparison.Ordinal))
-            {
-                return;
-            }
+    /// <summary>Indicates whether the component has been disposed.</summary>
+    private bool _disposed;
 
-            _markdown = value;
-            _pendingRequest?.TrySetCanceled();
-        }
-    }
-
-    /// <summary>Extracts the HTML produced by the MudMarkdown component after rendering.</summary>
+    /// <summary>Extracts the HTML produced by MudMarkdown after the browser has completed the render.</summary>
     /// <param name="markdown">The Markdown source to render.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The rendered HTML contained by the component.</returns>
     public async Task<string> RenderHtmlAsync(string markdown, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(markdown);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        _markdown = markdown;
+
         _pendingRequest?.TrySetCanceled();
-        _pendingRequest = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = cancellationToken.Register(() => _pendingRequest.TrySetCanceled(cancellationToken));
+        var request = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingRequest = request;
+        _markdown = markdown;
+
+        using var registration = cancellationToken.Register(static state =>
+        {
+            ((TaskCompletionSource<string>)state!).TrySetCanceled();
+        }, request);
+
         await InvokeAsync(StateHasChanged);
-        return await _pendingRequest.Task;
+        return await request.Task;
     }
 
-    /// <summary>Reads the rendered component HTML after Blazor has applied the pending render.</summary>
+    /// <summary>Captures the rendered MudMarkdown DOM after Blazor has completed the render pass.</summary>
     /// <param name="firstRender">Whether this is the first render.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_pendingRequest is null)
+        var request = _pendingRequest;
+        if (request is null || _disposed)
         {
             return;
         }
 
-        var request = _pendingRequest;
-        _pendingRequest = null;
         try
         {
             var html = await JsRuntime.InvokeAsync<string>("blazeMd2Pdf.getInnerHtml", _host);
-            request.TrySetResult(html);
+            if (ReferenceEquals(_pendingRequest, request))
+            {
+                _pendingRequest = null;
+                request.TrySetResult(html ?? string.Empty);
+            }
         }
         catch (Exception exception)
         {
-            request.TrySetException(exception);
+            if (ReferenceEquals(_pendingRequest, request))
+            {
+                _pendingRequest = null;
+                request.TrySetException(exception);
+            }
         }
+    }
+
+    /// <summary>Releases resources and completes any pending capture operation.</summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _pendingRequest?.TrySetCanceled();
+        _pendingRequest = null;
     }
 }

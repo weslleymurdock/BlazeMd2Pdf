@@ -131,15 +131,15 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
     /// <returns>The generated PDF bytes.</returns>
     private static byte[] BuildPdf(
         string markdown,
-        IReadOnlyList<byte> fontBytes,
+        byte[] fontBytes,
         string fontKey,
         CancellationToken cancellationToken)
     {
         var builder = new PdfDocumentBuilder();
         var font = builder.AddTrueTypeFont(fontBytes);
-        var page = builder.AddPage(PageSize.A4);
-        const decimal margin = 50;
-        const decimal lineHeight = 16;
+        var page = builder.AddPage(595d, 842d);
+        const double margin = 50d;
+        const double lineHeight = 16d;
         var y = page.PageSize.Height - margin;
 
         foreach (var sourceLine in markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
@@ -155,7 +155,7 @@ public sealed class ConverterService(HttpClient httpClient) : IConverterService
 
             if (y < margin + lineHeight)
             {
-                page = builder.AddPage(PageSize.A4);
+                page = builder.AddPage(595d, 842d);
                 y = page.PageSize.Height - margin;
             }
 

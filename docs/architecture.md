@@ -10,7 +10,9 @@
 
 Browser file streams are copied asynchronously into memory before PdfPig opens a PDF. PdfPig's PDF parser is synchronous, so this avoids synchronous reads directly against the browser-provided stream while preserving cancellation during the asynchronous copy.
 
-Markdown-to-PDF uses embedded TrueType font bytes loaded asynchronously from open document-font distributions. The available families are Liberation Sans (metric-compatible with Arial), Liberation Serif (metric-compatible with Times New Roman), Liberation Mono (metric-compatible with Courier New), and Noto Sans for broader Unicode coverage. The UI exposes the font selector when PdfPig reports that the selected font lacks a source character.
+Markdown-to-PDF uses TrueType font bytes loaded asynchronously from open document-font distributions. The available families are Liberation Sans (metric-compatible with Arial), Liberation Serif (metric-compatible with Times New Roman), Liberation Mono (metric-compatible with Courier New), and Noto Sans for broader Unicode coverage. The UI exposes the font selector when PdfPig reports that the selected font lacks a source character.
+
+The font assets are fetched only when the selected family is first used and are cached for subsequent conversions in the current application session.
 
 ## Pages
 

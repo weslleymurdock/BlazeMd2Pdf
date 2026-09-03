@@ -1,4 +1,7 @@
 window.blazeMd2Pdf = {
+    getInnerHtml: function (element) {
+        return element ? element.innerHTML : "";
+    },
     downloadFile: function (fileName, contentType, content) {
         const blob = new Blob([content], { type: contentType });
         const url = URL.createObjectURL(blob);

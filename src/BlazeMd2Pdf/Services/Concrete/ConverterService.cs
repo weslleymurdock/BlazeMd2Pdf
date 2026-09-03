@@ -4,6 +4,7 @@ using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
 using UglyToad.PdfPig.Writer;
+using PdfPig.Core;
 
 namespace BlazeMd2Pdf.Services.Concrete;
 
@@ -90,11 +91,9 @@ public sealed class ConverterService : IConverterService
         var boldFont = builder.AddStandard14Font(Standard14Font.HelveticaBold);
         var page = builder.AddPage(PageSize.A4);
         const double margin = 50;
-        const double regularFontSize = 11;
-        const double headingFontSize = 16;
         const double lineHeight = 16;
         const double headingLineHeight = 22;
-        var y = (double)page.PageSize.Height - margin;
+        var y = page.PageSize.Height - margin;
 
         foreach (var sourceLine in markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
         {
@@ -112,7 +111,7 @@ public sealed class ConverterService : IConverterService
             if (y < margin + spacing)
             {
                 page = builder.AddPage(PageSize.A4);
-                y = (double)page.PageSize.Height - margin;
+                y = page.PageSize.Height - margin;
             }
 
             page.AddText(text, fontSize, new PdfPoint(margin, y), font);
@@ -145,7 +144,7 @@ public sealed class ConverterService : IConverterService
         if (headingLength > 0 && headingLength < trimmed.Length && char.IsWhiteSpace(trimmed[headingLength]))
         {
             var heading = trimmed[(headingLength + 1)..].Trim();
-            return (heading, 16, boldFont, 22);
+            return (heading, 16, boldFont, headingLineHeight);
         }
 
         var text = trimmed.StartsWith("> ", StringComparison.Ordinal)
@@ -159,6 +158,6 @@ public sealed class ConverterService : IConverterService
             text = $"- {text[2..]}";
         }
 
-        return (text, 11, regularFont, 16);
+        return (text, 11, regularFont, lineHeight);
     }
 }

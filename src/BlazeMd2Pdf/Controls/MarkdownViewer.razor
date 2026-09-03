@@ -3,7 +3,7 @@
 @using Microsoft.JSInterop
 @using MudBlazor
 
-<MudDialog>
+<MudDialog Style="width: 80vw;max-width: 80vw !important;">
     <TitleContent>
         <MudText Typo="Typo.h6">Markdown preview</MudText>
     </TitleContent>
@@ -13,8 +13,8 @@
         </MudPaper>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="DownloadAsync" StartIcon="@Icons.Material.Filled.Download">Download</MudButton>
-        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton StartIcon="@Icons.Material.Outlined.Download" OnClick="DownloadAsync" StartIcon="@Icons.Material.Filled.Download">Download</MudButton>
+        <MudButton StartIcon="@Icons.Material.Outlined.Close" OnClick="Cancel">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
